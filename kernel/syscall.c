@@ -6,6 +6,7 @@
 #include "proc.h"
 #include "syscall.h"
 #include "defs.h"
+#include "syscall_stat.h"
 
 // Fetch the uint64 at addr from the current process.
 int
@@ -101,6 +102,9 @@ extern uint64 sys_unlink(void);
 extern uint64 sys_link(void);
 extern uint64 sys_mkdir(void);
 extern uint64 sys_close(void);
+extern uint64 sys_trace(void);
+extern uint64 sys_history(void);
+extern uint64 sys_shutdown(void);
 
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
@@ -126,22 +130,172 @@ static uint64 (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
+[SYS_trace]   sys_trace,
+[SYS_history] sys_history,
+[SYS_shutdown] sys_shutdown,
 };
+
+// Array containing the name of each system call
+static const char* syscall_names[] = {
+[SYS_fork]    "fork",
+[SYS_exit]    "exit",
+[SYS_wait]    "wait",
+[SYS_pipe]    "pipe",
+[SYS_read]    "read",
+[SYS_kill]    "kill",
+[SYS_exec]    "exec",
+[SYS_fstat]   "fstat",
+[SYS_chdir]   "chdir",
+[SYS_dup]     "dup",
+[SYS_getpid]  "getpid",
+[SYS_sbrk]    "sbrk",
+[SYS_sleep]   "sleep",
+[SYS_uptime]  "uptime",
+[SYS_open]    "open",
+[SYS_write]   "write",
+[SYS_mknod]   "mknod",
+[SYS_unlink]  "unlink",
+[SYS_link]    "link",
+[SYS_mkdir]   "mkdir",
+[SYS_close]   "close",
+[SYS_trace]   "trace",
+[SYS_history] "history",
+[SYS_shutdown] "shutdown",
+};
+
+static int syscall_arg_num[] = {
+[SYS_fork]    0,
+[SYS_exit]    1,
+[SYS_wait]    1,
+[SYS_pipe]    1,
+[SYS_read]    3,
+[SYS_kill]    1,
+[SYS_exec]    2,
+[SYS_fstat]   2,
+[SYS_chdir]   1,
+[SYS_dup]     1,
+[SYS_getpid]  0,
+[SYS_sbrk]    1,
+[SYS_sleep]   1,
+[SYS_uptime]  0,
+[SYS_open]    2,
+[SYS_write]   3,
+[SYS_mknod]   3,
+[SYS_unlink]  1,
+[SYS_link]    2,
+[SYS_mkdir]   1,
+[SYS_close]   1,
+[SYS_trace]   1,
+[SYS_history] 2,
+[SYS_shutdown] 0,
+};
+
+static enum syscall_arg_type syscall_args[][6] = {
+[SYS_fork]    {VOID},
+[SYS_exit]    {INT},
+[SYS_wait]    {PTR},
+[SYS_pipe]    {PTR},
+[SYS_read]    {INT, PTR, INT},
+[SYS_kill]    {INT},
+[SYS_exec]    {STR, PTR},
+[SYS_fstat]   {INT, PTR},
+[SYS_chdir]   {PTR},
+[SYS_dup]     {INT},
+[SYS_getpid]  {VOID},
+[SYS_sbrk]    {INT},
+[SYS_sleep]   {INT},
+[SYS_uptime]  {VOID},
+[SYS_open]    {STR, INT},
+[SYS_write]   {INT,PTR,INT},
+[SYS_mknod]   {STR, INT, INT},
+[SYS_unlink]  {STR},
+[SYS_link]    {STR, STR},
+[SYS_mkdir]   {STR},
+[SYS_close]   {INT},
+[SYS_trace]   {INT},
+[SYS_history] {INT, PTR},
+[SYS_shutdown] {VOID},
+};
+
+struct syscall_stat statlist[NSYSCALL];
+
+void
+syscall_stat_init(void) {
+  int i;
+  for(i=1; i<NSYSCALL; i++) {
+    initlock(&(statlist[i].lock), "stat");
+    safestrcpy(statlist[i].name, syscall_names[i], sizeof(statlist[i].name));
+    statlist[i].count = 0;
+    statlist[i].time = 0;
+  }
+}
+
+struct syscall_stat*
+get_stat(int index) {
+  return &(statlist[index]);
+}
+
+void print_args(int num) {
+  int i;
+  for(i=0; i<syscall_arg_num[num]; i++) {
+    if(i) printf(", "); 
+
+    if(syscall_args[num][i] == INT) {
+      int n;
+      argint(i, &n);
+      printf("%d", n);
+    }
+
+    else if(syscall_args[num][i] == PTR) {
+      uint64 ptr;
+      argaddr(i, &ptr);
+      printf("%p", ptr);
+    }
+
+    else if(syscall_args[num][i] == STR) {
+      char buf[32];
+      argstr(i, buf, 32);
+      printf("%s", buf);
+    }
+  }
+}
 
 void
 syscall(void)
 {
-  int num;
   struct proc *p = myproc();
+  int num = p->trapframe->a7;
 
-  num = p->trapframe->a7;
-  if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
-    // Use num to lookup the system call function for num, call it,
-    // and store its return value in p->trapframe->a0
-    p->trapframe->a0 = syscalls[num]();
-  } else {
+  if(num <= 0 || num >= NELEM(syscalls) || !(syscalls[num])) {
     printf("%d %s: unknown sys call %d\n",
             p->pid, p->name, num);
     p->trapframe->a0 = -1;
+    return;
   }
+
+  if(num == p->trace_index) {
+    printf("pid: %d, syscall: %s, args: (", p->pid, syscall_names[num]);
+    print_args(num);
+  }
+
+  // getting the start time of the system call
+  acquire(&tickslock);
+  uint start_time = ticks;
+  release(&tickslock);
+
+  p->trapframe->a0 = syscalls[num]();   // actual system call
+
+  // getting the end time of the system call
+  acquire(&tickslock);
+  uint end_time = ticks;
+  release(&tickslock);
+
+  // updating syscall status
+  acquire(&(statlist[num].lock));
+  statlist[num].count++;
+  statlist[num].time += (end_time - start_time);
+  release(&(statlist[num].lock));
+
+  if(num == p->trace_index)
+    printf("), return: %d\n", p->trapframe->a0);
 }

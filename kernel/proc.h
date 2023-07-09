@@ -104,4 +104,7 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+
+  // needed for tracing system calls
+  uint8 trace_index;             // Index of the system call being traced
 };

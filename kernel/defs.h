@@ -139,6 +139,8 @@ int             argstr(int, char*, int);
 void            argaddr(int, uint64 *);
 int             fetchstr(uint64, char*, int);
 int             fetchaddr(uint64, uint64*);
+void            syscall_stat_init(void);
+struct syscall_stat*    get_stat(int);
 void            syscall();
 
 // trap.c
@@ -187,3 +189,6 @@ void            virtio_disk_intr(void);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
+
+// start.c
+void timerhalt(void);

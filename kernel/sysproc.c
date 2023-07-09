@@ -5,6 +5,7 @@
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
+#include "syscall_stat.h"
 
 uint64
 sys_exit(void)
@@ -88,4 +89,33 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+uint64
+sys_trace(void) {
+  int trace_index;
+  argint(0, &trace_index);
+  if(trace_index<=0) return -1;
+
+  myproc()->trace_index = trace_index;
+  return 0;
+}
+
+uint64
+sys_history(void) {
+  int index;
+  argint(0, &index);
+  uint64 stat;
+  argaddr(1, &stat);
+
+  struct syscall_stat *fetched = get_stat(index);
+  acquire(&(fetched->lock));
+  copyout(myproc()->pagetable, stat, (char *)fetched, sizeof(*fetched));
+  release(&(fetched->lock));
+  return 0;
+}
+
+uint64 sys_shutdown(void) {
+  timerhalt();
+  return 0;
 }
