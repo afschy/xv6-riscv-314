@@ -116,6 +116,6 @@ sys_history(void) {
 }
 
 uint64 sys_shutdown(void) {
-  timerhalt();
+  set_halt_flag();
   return 0;
 }
