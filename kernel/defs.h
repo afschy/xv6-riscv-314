@@ -191,4 +191,4 @@ void            virtio_disk_intr(void);
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
 
 // start.c
-void timerhalt(void);
+void set_halt_flag(void);

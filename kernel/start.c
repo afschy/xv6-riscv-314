@@ -73,7 +73,7 @@ timerinit()
   // scratch[0..2] : space for timervec to save registers.
   // scratch[3] : address of CLINT MTIMECMP register.
   // scratch[4] : desired interval (in cycles) between timer interrupts.
-  // scratch[5] : halt flag for shutdown, set by timerhalt
+  // scratch[5] : halt flag for shutdown, set by set_halt_flag
   uint64 *scratch = &timer_scratch[id][0];
   scratch[3] = CLINT_MTIMECMP(id);
   scratch[4] = interval;
@@ -90,6 +90,6 @@ timerinit()
   w_mie(r_mie() | MIE_MTIE);
 }
 
-void timerhalt() {
+void set_halt_flag() {
   timer_scratch[0][5] = 1;
 }
