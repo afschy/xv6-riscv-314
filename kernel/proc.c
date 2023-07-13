@@ -55,6 +55,7 @@ procinit(void)
       initlock(&p->lock, "proc");
       p->state = UNUSED;
       p->kstack = KSTACK((int) (p - proc));
+      p->total_slices = 0;
   }
 }
 
@@ -145,6 +146,12 @@ found:
   memset(&p->context, 0, sizeof(p->context));
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
+
+  // Initializing scheduler variables
+  p->tickets_curr = DEFAULT_TICKET_COUNT;
+  p->tickets_og = DEFAULT_TICKET_COUNT;
+  p->rem_slices = 0;
+  p->q = 1;
 
   return p;
 }
@@ -318,7 +325,13 @@ fork(void)
   np->parent = p;
   release(&wait_lock);
 
+  acquire(&p->lock);
+  int parent_tickets = p->tickets_og;
+  release(&p->lock);
+
   acquire(&np->lock);
+  np->tickets_og = parent_tickets;
+  np->tickets_curr = parent_tickets;
   np->state = RUNNABLE;
   release(&np->lock);
 
