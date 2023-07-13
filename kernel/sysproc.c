@@ -89,3 +89,15 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+uint64
+sys_settickets(void) {
+  // printf("In settickets\n");
+  return 0;
+}
+
+uint64
+sys_getpinfo(void) {
+  // printf("In getpinfo\n");
+  return 0;
+}

@@ -11,3 +11,8 @@
 #define NBUF         (MAXOPBLOCKS*3)  // size of disk block cache
 #define FSSIZE       2000  // size of file system in blocks
 #define MAXPATH      128   // maximum file path name
+
+#define TIME_LIMIT_1 1  // Time slices given to the top level queue
+#define TIME_LIMIT_2 2  // Time slices given to the bottom level queue
+#define BOOST_INTERVAL 64   // Time after all processes are moved to the top level queue
+#define DEFAULT_TICKET_COUT // Number of tickets given to a new process by default
