@@ -681,3 +681,21 @@ procdump(void)
     printf("\n");
   }
 }
+
+// For each running process,
+// Increments total consumed slices, and
+// Decrements remaining slices
+void
+tick_proc_update() {
+  struct proc *p;
+  for(p=proc; p<&proc[NPROC]; p++) {
+    acquire(&p->lock);
+
+    if(p->state == RUNNING) {
+      p->total_slices++;
+      p->rem_slices--;
+    }
+
+    release(&p->lock);
+  }
+}

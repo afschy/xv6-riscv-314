@@ -167,6 +167,7 @@ clockintr()
   ticks++;
   wakeup(&ticks);
   release(&tickslock);
+  tick_proc_update();
 }
 
 // check if it's an external interrupt or software interrupt,

@@ -92,6 +92,13 @@ struct proc {
   int xstate;                  // Exit status to be returned to parent's wait
   int pid;                     // Process ID
 
+  // Related to scheduling
+  int tickets_curr;            // Current amount of lottery tickets held
+  int tickets_og;              // Original amount of lottery tickets held
+  int total_slices;            // Total number of time slices scheduled to this process
+  int rem_slices;              // Number of time slices this process has remaining
+  int q;                       // The queue the process currently is in
+
   // wait_lock must be held when using this:
   struct proc *parent;         // Parent process
 
