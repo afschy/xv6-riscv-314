@@ -109,6 +109,8 @@ int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
 void            tick_proc_update(void);
 void            boost_q(void);
+void            init_rnd(void);
+int             gen_rnd(void);
 
 // swtch.S
 void            swtch(struct context*, struct context*);

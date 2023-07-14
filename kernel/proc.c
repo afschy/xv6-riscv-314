@@ -8,6 +8,9 @@
 
 uint sch_ticks;   // Time after last queue bump
 
+uint32 rnd;
+struct spinlock rnd_lock;
+
 struct cpu cpus[NCPU];
 
 struct proc proc[NPROC];
@@ -477,6 +480,32 @@ migrate_q(struct proc *p) {
   }
 }
 
+// Total number of tickets currently held by
+// all runnable processes in queue 1
+int
+total_ticket_count() {
+  struct proc *p;
+  int count = 0;
+  for(p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
+    if(p->q == 1 && p->state == RUNNABLE) 
+      count += p->tickets_curr;
+    release(&p->lock);
+  }
+  return count;
+}
+
+void
+reset_ticket_count() {
+  struct proc *p;
+  for(p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
+    if(p->q == 1)
+      p->tickets_curr = p->tickets_og;
+    release(&p->lock);
+  }
+}
+
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
 // Scheduler never returns.  It loops, doing:
@@ -514,6 +543,9 @@ scheduler(void)
       release(&p->lock);
     }
     if(flag) continue;
+
+    int total = total_ticket_count();
+    if(!total) reset_ticket_count();
 
     // Round-robin on lower queue
     flag = 0;
@@ -780,4 +812,21 @@ boost_q() {
     if(p->q == 2) p->q = 1;
     release(&p->lock);
   }
+}
+
+// Initializes the rnd variable
+void
+init_rnd() {
+  rnd = 777;
+  initlock(&rnd_lock, "Random");
+}
+
+// Generates random number
+int
+gen_rnd() {
+  acquire(&rnd_lock);
+  rnd = rnd * 1664525 + 1013904223;
+  uint32 retval = rnd >> 16;
+  release(&rnd_lock);
+  return retval;
 }
