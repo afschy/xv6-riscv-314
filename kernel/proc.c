@@ -56,6 +56,7 @@ procinit(void)
       p->state = UNUSED;
       p->kstack = KSTACK((int) (p - proc));
       p->total_slices = 0;
+      p->rem_slices = 0;
   }
 }
 
@@ -465,13 +466,50 @@ scheduler(void)
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
 
+    // Fist, check for processes that have time slices remaining
+    // If one is found, it is immediately run
+    int flag = 0;
+    for(p = proc; p < &proc[NPROC]; p++) {
+      acquire(&p->lock);
+      if(p->state == RUNNABLE && p->rem_slices > 0) {
+        // printf("Slice %d\n", p->pid);
+        flag = 1;
+        p->state = RUNNING;
+        c->proc = p;
+        swtch(&c->context, &p->context);
+
+        // Process is done running for now.
+        // It should have changed its p->state before coming back.
+        c->proc = 0;
+      }
+      release(&p->lock);
+      if(flag) break;
+    }
+    if(flag) continue;
+
+    // Queue migration
+    for(p = proc; p < &proc[NPROC]; p++) {
+      acquire(&p->lock);
+
+      // Process finished without consuming all time slices
+      // Move to the top queue
+      if(p->state != RUNNABLE && p->state != RUNNING && p->rem_slices > 0 && p->q == 2) {
+        printf("Migrating queue %d\n", p->pid);
+        p->q = 1;
+      }
+
+      release(&p->lock);
+    }
+
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
       if(p->state == RUNNABLE) {
+        // printf("New %d\n", p->pid);
         // Switch to chosen process.  It is the process's job
         // to release its lock and then reacquire it
         // before jumping back to us.
         p->state = RUNNING;
+        p->rem_slices = 1;
         c->proc = p;
         swtch(&c->context, &p->context);
 
@@ -707,6 +745,7 @@ tick_proc_update() {
     if(p->state == RUNNING) {
       p->total_slices++;
       p->rem_slices--;
+      // printf("%d\n", p->rem_slices);
     }
 
     release(&p->lock);
