@@ -544,14 +544,44 @@ scheduler(void)
     }
     if(flag) continue;
 
+    // Lottery scheduling on upper queue
     int total = total_ticket_count();
     if(!total) reset_ticket_count();
+
+    flag = 0;
+    int count = 0, num = gen_rnd() % total + 1;
+
+    for(p = proc; p < &proc[NPROC]; p++) {
+      acquire(&p->lock);
+
+      if(p->q == 1 && p->state == RUNNABLE)
+        count += p->tickets_curr;
+
+      if(count >= num) {
+        flag = 1;
+        p->state = RUNNING;
+        p->slices_given = TIME_LIMIT_1;
+        p->slices_used = 0;
+        p->tickets_curr--;
+        c->proc = p;
+        swtch(&c->context, &p->context);
+
+        // Process is done running for now.
+        // It should have changed its p->state before coming back.
+        c->proc = 0;
+        migrate_q(p);
+      }
+
+      release(&p->lock);
+      if(flag) break;
+    }
+    if(flag) continue;
 
     // Round-robin on lower queue
     flag = 0;
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
-      if(p->state == RUNNABLE) {
+      if(p->q == 2 && p->state == RUNNABLE) {
         // Switch to chosen process.  It is the process's job
         // to release its lock and then reacquire it
         // before jumping back to us.
