@@ -96,7 +96,8 @@ struct proc {
   int tickets_curr;            // Current amount of lottery tickets held
   int tickets_og;              // Original amount of lottery tickets held
   int total_slices;            // Total number of time slices scheduled to this process
-  int rem_slices;              // Number of time slices this process has remaining
+  int slices_given;            // Number of time slices this process was given in last round of scheduling
+  int slices_used;             // Number of time slices this process has used after last round of scheduling
   int q;                       // The queue the process currently is in
 
   // wait_lock must be held when using this:

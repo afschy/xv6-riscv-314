@@ -6,6 +6,8 @@
 #include "proc.h"
 #include "defs.h"
 
+uint sch_ticks;   // Time after last queue bump
+
 struct cpu cpus[NCPU];
 
 struct proc proc[NPROC];
@@ -56,7 +58,9 @@ procinit(void)
       p->state = UNUSED;
       p->kstack = KSTACK((int) (p - proc));
       p->total_slices = 0;
-      p->rem_slices = 0;
+      p->slices_given = 0;
+      p->slices_used = 0;
+      p->q = 0;
   }
 }
 
@@ -151,7 +155,8 @@ found:
   // Initializing scheduler variables
   p->tickets_curr = DEFAULT_TICKET_COUNT;
   p->tickets_og = DEFAULT_TICKET_COUNT;
-  p->rem_slices = 0;
+  p->slices_given = 0;
+  p->slices_used = 0;
   p->q = 1;
 
   return p;
@@ -177,6 +182,9 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+  p->slices_given = 0;
+  p->slices_used = 0;
+  p->q = 0;
 }
 
 // Create a user page table for a given process, with no user memory,
@@ -448,6 +456,27 @@ wait(uint64 addr)
   }
 }
 
+// Moves a process to the upper or lower queue
+// based on how the process exited
+void
+migrate_q(struct proc *p) {
+  // Consumed all time slices
+  if(p->slices_given && p->slices_used >= p->slices_given) {
+    p->slices_given = 0;
+    p->slices_used = 0;
+    if(p->state == RUNNABLE) {
+      p->q = 2;
+      // printf("Downgrading %d\n", p->pid);
+    }
+  }
+
+  // Voluntarily left
+  if(p->slices_used < p->slices_given && p->state != RUNNABLE) {
+    p->q = 1;
+    // printf("Upgrading %d\n", p->pid);
+  }
+}
+
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
 // Scheduler never returns.  It loops, doing:
@@ -471,8 +500,7 @@ scheduler(void)
     int flag = 0;
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
-      if(p->state == RUNNABLE && p->rem_slices > 0) {
-        // printf("Slice %d\n", p->pid);
+      if(p->state == RUNNABLE && p->slices_given > p->slices_used) {
         flag = 1;
         p->state = RUNNING;
         c->proc = p;
@@ -481,35 +509,21 @@ scheduler(void)
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         c->proc = 0;
+        migrate_q(p);
       }
       release(&p->lock);
-      if(flag) break;
     }
     if(flag) continue;
-
-    // Queue migration
-    for(p = proc; p < &proc[NPROC]; p++) {
-      acquire(&p->lock);
-
-      // Process finished without consuming all time slices
-      // Move to the top queue
-      if(p->state != RUNNABLE && p->state != RUNNING && p->rem_slices > 0 && p->q == 2) {
-        printf("Migrating queue %d\n", p->pid);
-        p->q = 1;
-      }
-
-      release(&p->lock);
-    }
 
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
       if(p->state == RUNNABLE) {
-        // printf("New %d\n", p->pid);
         // Switch to chosen process.  It is the process's job
         // to release its lock and then reacquire it
         // before jumping back to us.
         p->state = RUNNING;
-        p->rem_slices = 1;
+        p->slices_given = 1;
+        p->slices_used = 0;
         c->proc = p;
         swtch(&c->context, &p->context);
 
@@ -738,16 +752,27 @@ procdump(void)
 // Decrements remaining slices
 void
 tick_proc_update() {
+  // printf("Clock\n");
   struct proc *p;
   for(p=proc; p<&proc[NPROC]; p++) {
     acquire(&p->lock);
 
     if(p->state == RUNNING) {
       p->total_slices++;
-      p->rem_slices--;
-      // printf("%d\n", p->rem_slices);
+      p->slices_used++;
     }
 
+    release(&p->lock);
+  }
+}
+
+// Move each process from queue 2 to queue 1
+void
+boost_q() {
+  struct proc* p;
+  for(p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
+    if(p->q == 2) p->q = 1;
     release(&p->lock);
   }
 }

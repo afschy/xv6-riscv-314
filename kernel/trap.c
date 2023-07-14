@@ -165,9 +165,16 @@ clockintr()
 {
   acquire(&tickslock);
   ticks++;
+  sch_ticks++;
+  
+  tick_proc_update();
+  if(sch_ticks >= BOOST_INTERVAL) {
+    boost_q();
+    sch_ticks = 0;
+  }
+
   wakeup(&ticks);
   release(&tickslock);
-  tick_proc_update();
 }
 
 // check if it's an external interrupt or software interrupt,
