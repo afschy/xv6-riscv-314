@@ -515,14 +515,17 @@ scheduler(void)
     }
     if(flag) continue;
 
+    // Round-robin on lower queue
+    flag = 0;
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
       if(p->state == RUNNABLE) {
         // Switch to chosen process.  It is the process's job
         // to release its lock and then reacquire it
         // before jumping back to us.
+        flag = 1;
         p->state = RUNNING;
-        p->slices_given = 1;
+        p->slices_given = TIME_LIMIT_2;
         p->slices_used = 0;
         c->proc = p;
         swtch(&c->context, &p->context);
@@ -530,8 +533,10 @@ scheduler(void)
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         c->proc = 0;
+        migrate_q(p);
       }
       release(&p->lock);
+      if(flag) break;
     }
   }
 }
