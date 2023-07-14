@@ -5,6 +5,7 @@
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
+#include "pstat.h"
 
 uint64
 sys_exit(void)
@@ -92,12 +93,25 @@ sys_uptime(void)
 
 uint64
 sys_settickets(void) {
-  // printf("In settickets\n");
+  int n;
+  argint(0, &n);
+  struct proc *p = myproc();
+
+  acquire(&p->lock);
+  p->tickets_og = n;
+  p->tickets_curr = n;
+  release(&p->lock);
   return 0;
 }
 
 uint64
 sys_getpinfo(void) {
-  // printf("In getpinfo\n");
+  uint64 user_addr;
+  argaddr(0, &user_addr);
+
+  struct pstat stat;
+  populate_pstat(&stat);
+
+  copyout(myproc()->pagetable, user_addr, (char *)&stat, sizeof(stat));
   return 0;
 }

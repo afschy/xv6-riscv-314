@@ -2,7 +2,10 @@
 #include "kernel/stat.h"
 #include "user/user.h"
 
-int main() {
-    settickets(100);
+int main(int argc, char **argv) {
+    if(argc == 2)
+        settickets(atoi(argv[1]));
+    fork();
+    while(1);
     exit(0);
 }

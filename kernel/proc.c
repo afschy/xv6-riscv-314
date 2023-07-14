@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "pstat.h"
 
 uint sch_ticks;   // Time after last queue bump
 
@@ -160,6 +161,7 @@ found:
   p->tickets_og = DEFAULT_TICKET_COUNT;
   p->slices_given = 0;
   p->slices_used = 0;
+  p->total_slices = 0;
   p->q = 1;
 
   return p;
@@ -185,8 +187,12 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+
+  p->tickets_curr = 0;
+  p->tickets_og = 0;
   p->slices_given = 0;
   p->slices_used = 0;
+  p->total_slices = 0;
   p->q = 0;
 }
 
@@ -544,6 +550,7 @@ scheduler(void)
     }
     if(flag) continue;
 
+    //TODO: Needs rework; acquire and release all locks at once
     // Lottery scheduling on upper queue
     int total = total_ticket_count();
     if(!total) reset_ticket_count();
@@ -577,6 +584,7 @@ scheduler(void)
     }
     if(flag) continue;
 
+    //TODO: Need to implement a circular queue
     // Round-robin on lower queue
     flag = 0;
     for(p = proc; p < &proc[NPROC]; p++) {
@@ -598,7 +606,7 @@ scheduler(void)
         migrate_q(p);
       }
       release(&p->lock);
-      if(flag) break;
+      if(flag && total_ticket_count()) break;
     }
   }
 }
@@ -859,4 +867,22 @@ gen_rnd() {
   uint32 retval = rnd >> 16;
   release(&rnd_lock);
   return retval;
+}
+
+// Populates a pstat with necessary information
+void
+populate_pstat(struct pstat *stat) {
+  int i;
+  for(i = 0; i < NPROC; i++) {
+    acquire(&(proc[i].lock));
+
+    stat->pid[i] = proc[i].pid;
+    stat->inuse[i] = (proc[i].state != UNUSED);
+    stat->inQ[i] = proc[i].q;
+    stat->tickets_original[i] = proc[i].tickets_og;
+    stat->tickets_current[i] = proc[i].tickets_curr;
+    stat->time_slices[i] = proc[i].total_slices;
+
+    release(&(proc[i].lock));
+  }
 }

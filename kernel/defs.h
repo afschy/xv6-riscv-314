@@ -8,6 +8,7 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
+struct pstat;
 
 // bio.c
 void            binit(void);
@@ -111,6 +112,7 @@ void            tick_proc_update(void);
 void            boost_q(void);
 void            init_rnd(void);
 int             gen_rnd(void);
+void            populate_pstat(struct pstat *);
 
 // swtch.S
 void            swtch(struct context*, struct context*);
