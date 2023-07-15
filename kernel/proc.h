@@ -99,6 +99,9 @@ struct proc {
   int slices_given;            // Number of time slices this process was given in last round of scheduling
   int slices_used;             // Number of time slices this process has used after last round of scheduling
   int q;                       // The queue the process currently is in
+  
+  struct proc* next;           // The next element in queue
+  struct proc* prev;
 
   // wait_lock must be held when using this:
   struct proc *parent;         // Parent process

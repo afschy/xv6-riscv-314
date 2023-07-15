@@ -113,6 +113,7 @@ void            boost_q(void);
 void            init_rnd(void);
 int             gen_rnd(void);
 void            populate_pstat(struct pstat *);
+void            initq(void);
 
 // swtch.S
 void            swtch(struct context*, struct context*);

@@ -6,6 +6,7 @@
 #include "proc.h"
 #include "defs.h"
 #include "pstat.h"
+#include "queue.h"
 
 uint sch_ticks;   // Time after last queue bump
 
@@ -31,6 +32,18 @@ extern char trampoline[]; // trampoline.S
 // memory model when using p->parent.
 // must be acquired before any p->lock.
 struct spinlock wait_lock;
+
+struct queue q1, q2;
+
+void
+initq() {
+    initlock(&q1.lock, "q1");
+    initlock(&q2.lock, "q2");
+    q1.head = 0;
+    q1.tail = 0;
+    q2.head = 0;
+    q2.tail = 0;
+}
 
 // Allocate a page for each process's kernel stack.
 // Map it high in memory, followed by an invalid
@@ -164,6 +177,10 @@ found:
   p->total_slices = 0;
   p->q = 1;
 
+  acquire(&q1.lock);
+  enq(&q1, p);
+  release(&q1.lock);
+
   return p;
 }
 
@@ -193,6 +210,18 @@ freeproc(struct proc *p)
   p->slices_given = 0;
   p->slices_used = 0;
   p->total_slices = 0;
+
+  if(p->q == 1) {
+    acquire(&q1.lock);
+    remq(&q1, p);
+    release(&q1.lock);
+  }
+  else if(p->q == 2) {
+    acquire(&q2.lock);
+    remq(&q2, p);
+    release(&q2.lock);
+  }
+
   p->q = 0;
 }
 
@@ -469,20 +498,39 @@ wait(uint64 addr)
 // based on how the process exited
 void
 migrate_q(struct proc *p) {
+  if(p->state == ZOMBIE || p->state == UNUSED)
+    return;
+
   // Consumed all time slices
   if(p->slices_given && p->slices_used >= p->slices_given) {
     p->slices_given = 0;
     p->slices_used = 0;
-    if(p->state == RUNNABLE) {
-      p->q = 2;
-      // printf("Downgrading %d\n", p->pid);
-    }
+    p->q = 2;
+
+    acquire(&q2.lock);
+    enq(&q2, p);
+    release(&q2.lock);
   }
 
   // Voluntarily left
-  if(p->slices_used < p->slices_given && p->state != RUNNABLE) {
+  else if(p->slices_used < p->slices_given && p->state != RUNNABLE) {
     p->q = 1;
-    // printf("Upgrading %d\n", p->pid);
+
+    acquire(&q1.lock);
+    enq(&q1, p);
+    release(&q1.lock);
+  }
+
+  else if(p->q == 1) {
+    acquire(&q1.lock);
+    enq(&q1, p);
+    release(&q1.lock);
+  }
+
+  else if(p->q == 2) {
+    acquire(&q2.lock);
+    enq(&q2, p);
+    release(&q2.lock);
   }
 }
 
@@ -493,9 +541,9 @@ total_ticket_count() {
   struct proc *p;
   int count = 0, flag = 0;
 
-  for(p = proc; p < &proc[NPROC]; p++) {
+  for(p = q1.head; p != NULLPTR; p = p->next) {
     acquire(&p->lock);
-    if(p->q == 1 && p->state == RUNNABLE) {
+    if(p->state == RUNNABLE) {
       count += p->tickets_curr;
       flag = 1;
     }
@@ -537,12 +585,17 @@ scheduler(void)
     // Fist, check for processes that have time slices remaining
     // If one is found, it is immediately run
     int flag = 0;
-    for(p = proc; p < &proc[NPROC]; p++) {
+    acquire(&q1.lock);
+
+    for(p = q1.head; p != NULLPTR; p = p->next) {
       acquire(&p->lock);
       if(p->state == RUNNABLE && p->slices_given > p->slices_used) {
         flag = 1;
         p->state = RUNNING;
         c->proc = p;
+
+        remq(&q1, p);
+        release(&q1.lock);
         swtch(&c->context, &p->context);
 
         // Process is done running for now.
@@ -551,24 +604,51 @@ scheduler(void)
         migrate_q(p);
       }
       release(&p->lock);
+      if(flag) break;
     }
     if(flag) continue;
+    release(&q1.lock);
 
-    //TODO: Needs rework; acquire and release all locks at once
+    acquire(&q2.lock);
+    for(p = q2.head; p != NULLPTR; p = p->next) {
+      acquire(&p->lock);
+      if(p->state == RUNNABLE && p->slices_given > p->slices_used) {
+        flag = 1;
+        p->state = RUNNING;
+        c->proc = p;
+
+        remq(&q2, p);
+        release(&q2.lock);
+        swtch(&c->context, &p->context);
+
+        // Process is done running for now.
+        // It should have changed its p->state before coming back.
+        c->proc = 0;
+        migrate_q(p);
+      }
+      release(&p->lock);
+      if(flag) break;
+    }
+    if(flag) continue;
+    release(&q2.lock);
+
     // Lottery scheduling on upper queue
+    acquire(&q1.lock);
     int total = total_ticket_count();
     if(!total) {
+      release(&q1.lock);
       reset_ticket_count();
+      acquire(&q1.lock);
       total = total_ticket_count();
     }
 
     flag = 0;
     int count = 0, num = gen_rnd() % total + 1;
 
-    for(p = proc; p < &proc[NPROC]; p++) {
+    for(p = q1.head; p != NULLPTR; p = p->next) {
       acquire(&p->lock);
 
-      if(p->q == 1 && p->state == RUNNABLE)
+      if(p->state == RUNNABLE)
         count += p->tickets_curr;
 
       if(count >= num) {
@@ -578,6 +658,9 @@ scheduler(void)
         p->slices_used = 0;
         p->tickets_curr--;
         c->proc = p;
+
+        remq(&q1, p);
+        release(&q1.lock);
         swtch(&c->context, &p->context);
 
         // Process is done running for now.
@@ -590,13 +673,14 @@ scheduler(void)
       if(flag) break;
     }
     if(flag) continue;
+    release(&q1.lock);
 
-    //TODO: Need to implement a proper queue
     // Round-robin on lower queue
+    acquire(&q2.lock);
     flag = 0;
-    for(p = proc; p < &proc[NPROC]; p++) {
+    for(p = q2.head; p != NULLPTR; p = p->next) {
       acquire(&p->lock);
-      if(p->q == 2 && p->state == RUNNABLE) {
+      if(p->state == RUNNABLE) {
         // Switch to chosen process.  It is the process's job
         // to release its lock and then reacquire it
         // before jumping back to us.
@@ -605,6 +689,9 @@ scheduler(void)
         p->slices_given = TIME_LIMIT_2;
         p->slices_used = 0;
         c->proc = p;
+
+        remq(&q2, p);
+        release(&q2.lock);
         swtch(&c->context, &p->context);
 
         // Process is done running for now.
@@ -613,8 +700,9 @@ scheduler(void)
         migrate_q(p);
       }
       release(&p->lock);
-      if(flag && total_ticket_count()>0) break;
+      if(flag) break;
     }
+    if(!flag) release(&q2.lock);
   }
 }
 
@@ -852,9 +940,20 @@ tick_proc_update() {
 void
 boost_q() {
   struct proc* p;
+  acquire(&q1.lock);
+  acquire(&q2.lock);
+
+  while((p = deq(&q2)) != NULLPTR) {
+    p->q = 1;
+    enq(&q1, p);
+  }
+
+  release(&q1.lock);
+  release(&q2.lock);
+
   for(p = proc; p < &proc[NPROC]; p++) {
     acquire(&p->lock);
-    if(p->q == 2) p->q = 1;
+    if(p->state == RUNNING) p->q = 1;
     release(&p->lock);
   }
 }

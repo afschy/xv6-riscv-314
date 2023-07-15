@@ -16,3 +16,4 @@
 #define TIME_LIMIT_2 2  // Time slices given to the bottom level queue
 #define BOOST_INTERVAL 64   // Time after all processes are moved to the top level queue
 #define DEFAULT_TICKET_COUNT 10     // Number of tickets given to a new process by default
+#define NULLPTR 0
