@@ -491,13 +491,17 @@ migrate_q(struct proc *p) {
 int
 total_ticket_count() {
   struct proc *p;
-  int count = 0;
+  int count = 0, flag = 0;
+
   for(p = proc; p < &proc[NPROC]; p++) {
     acquire(&p->lock);
-    if(p->q == 1 && p->state == RUNNABLE) 
+    if(p->q == 1 && p->state == RUNNABLE) {
       count += p->tickets_curr;
+      flag = 1;
+    }
     release(&p->lock);
   }
+  if(!flag) return -1;
   return count;
 }
 
@@ -506,7 +510,7 @@ reset_ticket_count() {
   struct proc *p;
   for(p = proc; p < &proc[NPROC]; p++) {
     acquire(&p->lock);
-    if(p->q == 1)
+    if(p->state == RUNNABLE)
       p->tickets_curr = p->tickets_og;
     release(&p->lock);
   }
@@ -553,7 +557,10 @@ scheduler(void)
     //TODO: Needs rework; acquire and release all locks at once
     // Lottery scheduling on upper queue
     int total = total_ticket_count();
-    if(!total) reset_ticket_count();
+    if(!total) {
+      reset_ticket_count();
+      total = total_ticket_count();
+    }
 
     flag = 0;
     int count = 0, num = gen_rnd() % total + 1;
@@ -584,7 +591,7 @@ scheduler(void)
     }
     if(flag) continue;
 
-    //TODO: Need to implement a circular queue
+    //TODO: Need to implement a proper queue
     // Round-robin on lower queue
     flag = 0;
     for(p = proc; p < &proc[NPROC]; p++) {
@@ -606,7 +613,7 @@ scheduler(void)
         migrate_q(p);
       }
       release(&p->lock);
-      if(flag && total_ticket_count()) break;
+      if(flag && total_ticket_count()>0) break;
     }
   }
 }
