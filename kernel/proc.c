@@ -211,16 +211,16 @@ freeproc(struct proc *p)
   p->slices_used = 0;
   p->total_slices = 0;
 
-  if(p->q == 1) {
-    acquire(&q1.lock);
-    remq(&q1, p);
-    release(&q1.lock);
-  }
-  else if(p->q == 2) {
-    acquire(&q2.lock);
-    remq(&q2, p);
-    release(&q2.lock);
-  }
+  // if(p->q == 1) {
+  //   acquire(&q1.lock);
+  //   remq(&q1, p);
+  //   release(&q1.lock);
+  // }
+  // else if(p->q == 2) {
+  //   acquire(&q2.lock);
+  //   remq(&q2, p);
+  //   release(&q2.lock);
+  // }
 
   p->q = 0;
 }

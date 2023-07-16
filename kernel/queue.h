@@ -30,6 +30,7 @@ deq(struct queue *q) {
 
     struct proc *ret = q->head;
     q->head = q->head->next;
+    q->head->prev = NULLPTR;
 
     ret->next = NULLPTR;
     ret->prev = NULLPTR;
