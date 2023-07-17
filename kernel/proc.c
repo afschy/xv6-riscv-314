@@ -215,7 +215,7 @@ freeproc(struct proc *p)
   p->slices_used = 0;
   p->total_slices = 0;
 
-  // ! What if it remains in queue?
+  // ? What if it remains in queue?
   // if(p->q == 1) {
   //   acquire(&q1.lock);
   //   remq(&q1, p);
@@ -650,7 +650,7 @@ scheduler(void)
       total = total_ticket_count();
     }
 
-    if(!total) {
+    if(total <= 0) {
       release(&q1.lock);
       goto round_robin;
     }
