@@ -33,16 +33,20 @@ extern char trampoline[]; // trampoline.S
 // must be acquired before any p->lock.
 struct spinlock wait_lock;
 
+// All alive processes are either running
+// Or in one of q1 and q2
+// When a process transitions from running to unused/zombie,
+// It is not allowed back into the queue
 struct queue q1, q2;
 
 void
 initq() {
     initlock(&q1.lock, "q1");
     initlock(&q2.lock, "q2");
-    q1.head = 0;
-    q1.tail = 0;
-    q2.head = 0;
-    q2.tail = 0;
+    q1.head = NULLPTR;
+    q1.tail = NULLPTR;
+    q2.head = NULLPTR;
+    q2.tail = NULLPTR;
 }
 
 // Allocate a page for each process's kernel stack.
@@ -211,6 +215,7 @@ freeproc(struct proc *p)
   p->slices_used = 0;
   p->total_slices = 0;
 
+  // ! What if it remains in queue?
   // if(p->q == 1) {
   //   acquire(&q1.lock);
   //   remq(&q1, p);
@@ -553,6 +558,7 @@ total_ticket_count() {
   return count;
 }
 
+// ? Maybe use queues?
 void
 reset_ticket_count() {
   struct proc *p;
@@ -609,7 +615,9 @@ scheduler(void)
     if(flag) continue;
     release(&q1.lock);
 
+    flag = 0;
     acquire(&q2.lock);
+
     for(p = q2.head; p != NULLPTR; p = p->next) {
       acquire(&p->lock);
       if(p->state == RUNNABLE && p->slices_given > p->slices_used) {
@@ -642,6 +650,11 @@ scheduler(void)
       total = total_ticket_count();
     }
 
+    if(!total) {
+      release(&q1.lock);
+      goto round_robin;
+    }
+
     flag = 0;
     int count = 0, num = gen_rnd() % total + 1;
 
@@ -656,7 +669,7 @@ scheduler(void)
         p->state = RUNNING;
         p->slices_given = TIME_LIMIT_1;
         p->slices_used = 0;
-        p->tickets_curr--;
+        p->tickets_curr -= TIME_LIMIT_1;
         c->proc = p;
 
         remq(&q1, p);
@@ -675,6 +688,7 @@ scheduler(void)
     if(flag) continue;
     release(&q1.lock);
 
+  round_robin:
     // Round-robin on lower queue
     acquire(&q2.lock);
     flag = 0;

@@ -101,7 +101,7 @@ struct proc {
   int q;                       // The queue the process currently is in
   
   struct proc* next;           // The next element in queue
-  struct proc* prev;
+  struct proc* prev;           // The previous element in queue
 
   // wait_lock must be held when using this:
   struct proc *parent;         // Parent process
