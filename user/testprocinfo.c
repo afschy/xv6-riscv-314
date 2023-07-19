@@ -13,7 +13,7 @@ int main() {
        
     for(i=0; i<NPROC; i++) {
         if(!stat.pid[i]) continue;
-        printf("  %d      %d        %d            %d                  %d                 %d\n", 
+        printf("%d\t  %d\t    %d\t\t%d\t\t\t%d\t\t%d\n", 
             stat.pid[i], stat.inuse[i], stat.inQ[i], stat.tickets_original[i], stat.tickets_current[i], stat.time_slices[i]);
     }
     exit(0);

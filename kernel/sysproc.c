@@ -95,6 +95,8 @@ uint64
 sys_settickets(void) {
   int n;
   argint(0, &n);
+  if(n <= 0) return -1;
+  
   struct proc *p = myproc();
 
   acquire(&p->lock);
@@ -108,6 +110,7 @@ uint64
 sys_getpinfo(void) {
   uint64 user_addr;
   argaddr(0, &user_addr);
+  if(!user_addr) return -1;
 
   struct pstat stat;
   populate_pstat(&stat);
