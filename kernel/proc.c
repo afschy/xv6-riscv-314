@@ -81,7 +81,10 @@ procinit(void)
       p->total_slices = 0;
       p->slices_given = 0;
       p->slices_used = 0;
+      
       p->q = 0;
+      p->prev = NULLPTR;
+      p->next = NULLPTR;
   }
 }
 
@@ -179,7 +182,10 @@ found:
   p->slices_given = 0;
   p->slices_used = 0;
   p->total_slices = 0;
+
   p->q = 1;
+  p->prev = NULLPTR;
+  p->next = NULLPTR;
 
   acquire(&q1.lock);
   enq(&q1, p);
@@ -215,19 +221,9 @@ freeproc(struct proc *p)
   p->slices_used = 0;
   p->total_slices = 0;
 
-  // ? What if it remains in queue?
-  // if(p->q == 1) {
-  //   acquire(&q1.lock);
-  //   remq(&q1, p);
-  //   release(&q1.lock);
-  // }
-  // else if(p->q == 2) {
-  //   acquire(&q2.lock);
-  //   remq(&q2, p);
-  //   release(&q2.lock);
-  // }
-
   p->q = 0;
+  p->prev = NULLPTR;
+  p->next = NULLPTR;
 }
 
 // Create a user page table for a given process, with no user memory,
@@ -692,6 +688,7 @@ scheduler(void)
     // Round-robin on lower queue
     acquire(&q2.lock);
     flag = 0;
+
     for(p = q2.head; p != NULLPTR; p = p->next) {
       acquire(&p->lock);
       if(p->state == RUNNABLE) {
@@ -957,8 +954,10 @@ boost_q() {
   acquire(&q1.lock);
   acquire(&q2.lock);
 
-  while((p = deq(&q2)) != NULLPTR) {
+  while(q2.head != NULLPTR) {
+    p = q2.head;
     p->q = 1;
+    deq(&q2);
     enq(&q1, p);
   }
 

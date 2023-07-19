@@ -24,19 +24,6 @@ enq(struct queue *q, struct proc *elem) {
     q->tail = elem;
 }
 
-struct proc*
-deq(struct queue *q) {
-    if(q->head == NULLPTR) return q->head;
-
-    struct proc *ret = q->head;
-    q->head = q->head->next;
-    q->head->prev = NULLPTR;
-
-    ret->next = NULLPTR;
-    ret->prev = NULLPTR;
-    return ret;
-}
-
 void
 remq(struct queue *q, struct proc *p) {
     if(p->prev != NULLPTR) p->prev->next = p->next;
@@ -48,9 +35,10 @@ remq(struct queue *q, struct proc *p) {
     p->next = NULLPTR;
 }
 
-int
-q_isempty(struct queue *q) {
-    return q->head == NULLPTR;
+void
+deq(struct queue *q) {
+    if(q->head == NULLPTR) return;
+    remq(q, q->head);
 }
 
 #endif
