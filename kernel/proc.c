@@ -666,7 +666,7 @@ scheduler(void)
         p->slices_given = TIME_LIMIT_1;
         p->slices_used = 0;
         // p->tickets_curr -= TIME_LIMIT_1;
-        p->tickets_curr = MAX(0, (p->tickets_curr - TIME_LIMIT_1));
+        // p->tickets_curr = MAX(0, (p->tickets_curr - TIME_LIMIT_1));
         c->proc = p;
 
         remq(&q1, p);
@@ -942,6 +942,8 @@ tick_proc_update() {
     if(p->state == RUNNING) {
       p->total_slices++;
       p->slices_used++;
+      if(p->q == 1)
+        p->tickets_curr = MAX(0, (p->tickets_curr - 1));
     }
 
     release(&p->lock);
