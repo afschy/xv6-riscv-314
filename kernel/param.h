@@ -17,3 +17,6 @@
 #define BOOST_INTERVAL 64   // Time after all processes are moved to the top level queue
 #define DEFAULT_TICKET_COUNT 10     // Number of tickets given to a new process by default
 #define NULLPTR 0
+
+#define MAX(x, y) (((x) > (y)) ? (x) : (y))
+#define MIN(x, y) (((x) < (y)) ? (x) : (y))
