@@ -576,7 +576,8 @@ scheduler(void)
         p->state = RUNNING;
         p->slices_given = TIME_LIMIT_1;
         p->slices_used = 0;
-        p->tickets_curr -= TIME_LIMIT_1;
+        // p->tickets_curr -= TIME_LIMIT_1;
+        p->tickets_curr = MAX(0, p->tickets_curr - TIME_LIMIT_1);
         c->proc = p;
         swtch(&c->context, &p->context);
 
