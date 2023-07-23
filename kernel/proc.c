@@ -584,58 +584,6 @@ scheduler(void)
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
 
-    // Fist, check for processes that have time slices remaining
-    // If one is found, it is immediately run
-    int flag = 0;
-    acquire(&q1.lock);
-
-    for(p = q1.head; p != NULLPTR; p = p->next) {
-      acquire(&p->lock);
-      if(p->state == RUNNABLE && p->slices_given > p->slices_used) {
-        flag = 1;
-        p->state = RUNNING;
-        c->proc = p;
-
-        remq(&q1, p);
-        release(&q1.lock);
-        swtch(&c->context, &p->context);
-
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
-        migrate_q(p);
-      }
-      release(&p->lock);
-      if(flag) break;
-    }
-    if(flag) continue;
-    release(&q1.lock);
-
-    flag = 0;
-    acquire(&q2.lock);
-
-    for(p = q2.head; p != NULLPTR; p = p->next) {
-      acquire(&p->lock);
-      if(p->state == RUNNABLE && p->slices_given > p->slices_used) {
-        flag = 1;
-        p->state = RUNNING;
-        c->proc = p;
-
-        remq(&q2, p);
-        release(&q2.lock);
-        swtch(&c->context, &p->context);
-
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
-        migrate_q(p);
-      }
-      release(&p->lock);
-      if(flag) break;
-    }
-    if(flag) continue;
-    release(&q2.lock);
-
     // Lottery scheduling on upper queue
     acquire(&q1.lock);
     int total = total_ticket_count();
@@ -651,7 +599,7 @@ scheduler(void)
       goto round_robin;
     }
 
-    flag = 0;
+    int flag = 0;
     int count = 0, num = gen_rnd() % total + 1;
 
     for(p = q1.head; p != NULLPTR; p = p->next) {
@@ -662,20 +610,19 @@ scheduler(void)
 
       if(count >= num) {
         flag = 1;
-        p->state = RUNNING;
-        p->slices_given = TIME_LIMIT_1;
-        p->slices_used = 0;
-        // p->tickets_curr -= TIME_LIMIT_1;
-        // p->tickets_curr = MAX(0, (p->tickets_curr - TIME_LIMIT_1));
-        c->proc = p;
 
+        p->slices_used = 0;
+        p->slices_given = TIME_LIMIT_1;
         remq(&q1, p);
         release(&q1.lock);
-        swtch(&c->context, &p->context);
 
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
+        while(p->state == RUNNABLE && p->slices_given > p->slices_used) {
+          p->state = RUNNING;
+          c->proc = p;
+          swtch(&c->context, &p->context);
+          c->proc = 0;
+        }
+
         migrate_q(p);
       }
 
@@ -693,22 +640,20 @@ scheduler(void)
     for(p = q2.head; p != NULLPTR; p = p->next) {
       acquire(&p->lock);
       if(p->state == RUNNABLE) {
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
         flag = 1;
-        p->state = RUNNING;
-        p->slices_given = TIME_LIMIT_2;
-        p->slices_used = 0;
-        c->proc = p;
 
+        p->slices_used = 0;
+        p->slices_given = TIME_LIMIT_2;
         remq(&q2, p);
         release(&q2.lock);
-        swtch(&c->context, &p->context);
 
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
+        while(p->state == RUNNABLE && p->slices_given > p->slices_used) {
+          p->state = RUNNING;
+          c->proc = p;
+          swtch(&c->context, &p->context);
+          c->proc = 0;
+        }
+
         migrate_q(p);
       }
       release(&p->lock);
