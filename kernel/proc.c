@@ -501,6 +501,7 @@ void
 migrate_q(struct proc *p) {
   if(p->state == ZOMBIE || p->state == UNUSED)
     return;
+  // printf("pid = %d, queue = %d, used = %d, given = %d\n", p->pid, p->q, p->slices_used, p->slices_given);
 
   // Consumed all time slices
   if(p->slices_given && p->slices_used >= p->slices_given) {
@@ -616,12 +617,12 @@ scheduler(void)
         remq(&q1, p);
         release(&q1.lock);
 
-        while(p->state == RUNNABLE && p->slices_given > p->slices_used) {
-          p->state = RUNNING;
-          c->proc = p;
-          swtch(&c->context, &p->context);
-          c->proc = 0;
-        }
+        // while(p->state == RUNNABLE && p->slices_given > p->slices_used) {
+        p->state = RUNNING;
+        c->proc = p;
+        swtch(&c->context, &p->context);
+        c->proc = 0;
+        // }
 
         migrate_q(p);
       }
@@ -647,12 +648,12 @@ scheduler(void)
         remq(&q2, p);
         release(&q2.lock);
 
-        while(p->state == RUNNABLE && p->slices_given > p->slices_used) {
-          p->state = RUNNING;
-          c->proc = p;
-          swtch(&c->context, &p->context);
-          c->proc = 0;
-        }
+        // while(p->state == RUNNABLE && p->slices_given > p->slices_used) {
+        p->state = RUNNING;
+        c->proc = p;
+        swtch(&c->context, &p->context);
+        c->proc = 0;
+        // }
 
         migrate_q(p);
       }
@@ -696,6 +697,12 @@ yield(void)
 {
   struct proc *p = myproc();
   acquire(&p->lock);
+
+  if(p->slices_used < p->slices_given) {
+    release(&p->lock);
+    return;
+  }
+
   p->state = RUNNABLE;
   sched();
   release(&p->lock);
