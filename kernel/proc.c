@@ -556,12 +556,12 @@ scheduler(void)
         p->slices_given = TIME_LIMIT_1;
         p->slices_used = 0;
 
-        while(p->state == RUNNABLE && p->slices_given > p->slices_used) {
-          p->state = RUNNING;
-          c->proc = p;
-          swtch(&c->context, &p->context);
-          c->proc = 0;
-        }
+        // while(p->state == RUNNABLE && p->slices_given > p->slices_used) {
+        p->state = RUNNING;
+        c->proc = p;
+        swtch(&c->context, &p->context);
+        c->proc = 0;
+        // }
         
         migrate_q(p);
       }
@@ -580,12 +580,12 @@ scheduler(void)
         p->slices_given = TIME_LIMIT_2;
         p->slices_used = 0;
 
-        while(p->state == RUNNABLE && p->slices_given > p->slices_used) {
-          p->state = RUNNING;
-          c->proc = p;
-          swtch(&c->context, &p->context);
-          c->proc = 0;
-        }
+        // while(p->state == RUNNABLE && p->slices_given > p->slices_used) {
+        p->state = RUNNING;
+        c->proc = p;
+        swtch(&c->context, &p->context);
+        c->proc = 0;
+        // }
         
         migrate_q(p);
       }
@@ -628,6 +628,12 @@ yield(void)
 {
   struct proc *p = myproc();
   acquire(&p->lock);
+
+  if(p->slices_used < p->slices_given) {
+    release(&p->lock);
+    return;
+  }
+
   p->state = RUNNABLE;
   sched();
   release(&p->lock);
