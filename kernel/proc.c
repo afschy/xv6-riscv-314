@@ -534,35 +534,15 @@ scheduler(void)
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
 
-    // Fist, check for processes that have time slices remaining
-    // If one is found, it is immediately run
-    int flag = 0;
-    for(p = proc; p < &proc[NPROC]; p++) {
-      acquire(&p->lock);
-      if(p->state == RUNNABLE && p->slices_given > p->slices_used) {
-        flag = 1;
-        p->state = RUNNING;
-        c->proc = p;
-        swtch(&c->context, &p->context);
-
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
-        migrate_q(p);
-      }
-      release(&p->lock);
-    }
-    if(flag) continue;
-
-    //TODO: Needs rework; acquire and release all locks at once
     // Lottery scheduling on upper queue
     int total = total_ticket_count();
     if(!total) {
       reset_ticket_count();
       total = total_ticket_count();
     }
+    if(total <= 0) goto round_robin;
 
-    flag = 0;
+    int flag = 0;
     int count = 0, num = gen_rnd() % total + 1;
 
     for(p = proc; p < &proc[NPROC]; p++) {
@@ -573,17 +553,16 @@ scheduler(void)
 
       if(count >= num) {
         flag = 1;
-        p->state = RUNNING;
         p->slices_given = TIME_LIMIT_1;
         p->slices_used = 0;
-        // p->tickets_curr -= TIME_LIMIT_1;
-        // p->tickets_curr = MAX(0, (p->tickets_curr - TIME_LIMIT_1));
-        c->proc = p;
-        swtch(&c->context, &p->context);
 
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
+        while(p->state == RUNNABLE && p->slices_given > p->slices_used) {
+          p->state = RUNNING;
+          c->proc = p;
+          swtch(&c->context, &p->context);
+          c->proc = 0;
+        }
+        
         migrate_q(p);
       }
 
@@ -592,29 +571,26 @@ scheduler(void)
     }
     if(flag) continue;
 
-    //TODO: Need to implement a proper queue
+    round_robin:
     // Round-robin on lower queue
-    flag = 0;
+    
     for(p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
       if(p->q == 2 && p->state == RUNNABLE) {
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
-        flag = 1;
-        p->state = RUNNING;
         p->slices_given = TIME_LIMIT_2;
         p->slices_used = 0;
-        c->proc = p;
-        swtch(&c->context, &p->context);
 
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
+        while(p->state == RUNNABLE && p->slices_given > p->slices_used) {
+          p->state = RUNNING;
+          c->proc = p;
+          swtch(&c->context, &p->context);
+          c->proc = 0;
+        }
+        
         migrate_q(p);
       }
       release(&p->lock);
-      if(flag && total_ticket_count()>0) break;
+      if(total_ticket_count()>0) break;
     }
   }
 }
