@@ -962,7 +962,7 @@ populate_pstat(struct pstat *stat) {
     acquire(&(proc[i].lock));
 
     stat->pid[i] = proc[i].pid;
-    stat->inuse[i] = (proc[i].state != UNUSED);
+    stat->inuse[i] = (proc[i].state == RUNNABLE || proc[i].state == RUNNING);
     stat->inQ[i] = proc[i].q;
     stat->tickets_original[i] = proc[i].tickets_og;
     stat->tickets_current[i] = proc[i].tickets_curr;
