@@ -503,8 +503,17 @@ migrate_q(struct proc *p) {
     return;
   // printf("pid = %d, queue = %d, used = %d, given = %d\n", p->pid, p->q, p->slices_used, p->slices_given);
 
+  // Was boosted while running
+  if(p->q_sched == 2 && p->q == 1 && p->state == RUNNABLE) {
+    p->q = 1;
+
+    acquire(&q1.lock);
+    enq(&q1, p);
+    release(&q1.lock);
+  }
+
   // Consumed all time slices
-  if(p->slices_given && p->slices_used >= p->slices_given) {
+  else if(p->slices_given && p->slices_used >= p->slices_given) {
     p->slices_given = 0;
     p->slices_used = 0;
     p->q = 2;
