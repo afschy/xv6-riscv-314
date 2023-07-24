@@ -99,6 +99,7 @@ struct proc {
   int slices_given;            // Number of time slices this process was given in last round of scheduling
   int slices_used;             // Number of time slices this process has used after last round of scheduling
   int q;                       // The queue the process currently is in
+  int q_sched;                 // The queue the process was in at the time of the last scheduling
   
   struct proc* next;           // The next element in queue
   struct proc* prev;           // The previous element in queue
