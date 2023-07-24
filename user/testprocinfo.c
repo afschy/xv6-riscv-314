@@ -8,7 +8,10 @@ int main() {
     struct pstat stat;
     int i;
 
-    getpinfo(&stat);
+    if(getpinfo(&stat) == -1) {
+        printf("Fetching info failed\n");
+        exit(0);
+    }
     printf("PID  |  In Use  |  inQ  |  Original Tickets  |  Current Tickets  |  Time Slices\n");
        
     for(i=0; i<NPROC; i++) {
