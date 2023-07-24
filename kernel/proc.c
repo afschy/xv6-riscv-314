@@ -555,6 +555,7 @@ scheduler(void)
         flag = 1;
         p->slices_given = TIME_LIMIT_1;
         p->slices_used = 0;
+        p->q_sched = 1;
 
         // while(p->state == RUNNABLE && p->slices_given > p->slices_used) {
         p->state = RUNNING;
@@ -579,6 +580,7 @@ scheduler(void)
       if(p->q == 2 && p->state == RUNNABLE) {
         p->slices_given = TIME_LIMIT_2;
         p->slices_used = 0;
+        p->q_sched = 2;
 
         // while(p->state == RUNNABLE && p->slices_given > p->slices_used) {
         p->state = RUNNING;
@@ -825,7 +827,7 @@ tick_proc_update() {
     if(p->state == RUNNING) {
       p->total_slices++;
       p->slices_used++;
-      if(p->q == 1)
+      if(p->q_sched == 1)
         p->tickets_curr = MAX(0, (p->tickets_curr - 1));
     }
 
