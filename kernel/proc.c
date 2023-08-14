@@ -325,6 +325,12 @@ fork(void)
   return pid;
 }
 
+void
+new_thread(void* func, void* arg, void* stack)
+{
+
+}
+
 // Pass p's abandoned children to init.
 // Caller must hold wait_lock.
 void
