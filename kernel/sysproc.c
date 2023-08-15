@@ -97,16 +97,18 @@ sys_thread_create(void) {
   argaddr(1, &arg);
   argaddr(2, &stack);
 
-  new_thread((void*)func, (void*)arg, (void*)stack);
-  return 0;
+  return new_thread((void*)func, (void*)arg, (void*)stack);
 }
 
 uint64
 sys_thread_join(void) {
-  return 0;
+  int id;
+  argint(0, &id);
+  return join_thread(id);
 }
 
 uint64
 sys_thread_exit(void) {
+  exit_thread();
   return 0;
 }

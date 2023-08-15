@@ -89,6 +89,7 @@ int             growproc(int);
 void            proc_mapstacks(pagetable_t);
 pagetable_t     proc_pagetable(struct proc *);
 void            proc_freepagetable(pagetable_t, uint64);
+void            thread_freepagetable(pagetable_t, uint64);
 int             kill(int);
 int             killed(struct proc*);
 void            setkilled(struct proc*);
@@ -101,12 +102,14 @@ void            sched(void);
 void            sleep(void*, struct spinlock*);
 void            userinit(void);
 int             wait(uint64);
+int             join_thread(uint64);
 void            wakeup(void*);
 void            yield(void);
 int             either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
 int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
 int             new_thread(void*, void*, void*);
+void            exit_thread(void);
 
 // swtch.S
 void            swtch(struct context*, struct context*);
@@ -175,6 +178,7 @@ uint64          walkaddr(pagetable_t, uint64);
 int             copyout(pagetable_t, uint64, char *, uint64);
 int             copyin(pagetable_t, char *, uint64, uint64);
 int             copyinstr(pagetable_t, char *, uint64, uint64);
+void            freewalk(pagetable_t pagetable);
 
 // plic.c
 void            plicinit(void);

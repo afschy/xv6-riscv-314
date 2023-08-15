@@ -104,4 +104,7 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+
+  // Variables needed for threading
+  int is_thread;               // 1 if this proc is a thread spawned by another thread, 0 otherwise
 };

@@ -146,6 +146,8 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+  p->is_thread = 0;
+
   return p;
 }
 
@@ -158,7 +160,9 @@ freeproc(struct proc *p)
   if(p->trapframe)
     kfree((void*)p->trapframe);
   p->trapframe = 0;
-  if(p->pagetable)
+  if(p->pagetable && p->is_thread)
+    thread_freepagetable(p->pagetable, p->sz);
+  else if(p->pagetable)
     proc_freepagetable(p->pagetable, p->sz);
   p->pagetable = 0;
   p->sz = 0;
@@ -169,6 +173,7 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+  p->is_thread = 0;
 }
 
 // Create a user page table for a given process, with no user memory,
@@ -213,6 +218,16 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz)
   uvmunmap(pagetable, TRAMPOLINE, 1, 0);
   uvmunmap(pagetable, TRAPFRAME, 1, 0);
   uvmfree(pagetable, sz);
+}
+
+void
+thread_freepagetable(pagetable_t pagetable, uint64 sz)
+{
+  uvmunmap(pagetable, TRAMPOLINE, 1, 0);
+  uvmunmap(pagetable, TRAPFRAME, 1, 0);
+  if(sz > 0)
+    uvmunmap(pagetable, 0, PGROUNDUP(sz)/PGSIZE, 0);
+  freewalk(pagetable);
 }
 
 // a user program that calls exec("/init")
@@ -368,6 +383,7 @@ new_thread(void* func, void* arg, void* stack)
 
   acquire(&np->lock);
   np->state = RUNNABLE;
+  np->is_thread = 1;
   release(&np->lock);
   // printf("New thread created\n");
 
@@ -384,6 +400,12 @@ reparent(struct proc *p)
   for(pp = proc; pp < &proc[NPROC]; pp++){
     if(pp->parent == p){
       pp->parent = initproc;
+      if(pp->is_thread == 1) {
+        uvmunmap(pp->pagetable, 0, PGROUNDUP(pp->sz)/PGSIZE, 0);
+        pp->sz = 0;
+        // uvmcopy(p->pagetable, pp->pagetable, p->sz);
+        kill(pp->pid);
+      }
       wakeup(initproc);
     }
   }
@@ -434,6 +456,47 @@ exit(int status)
   panic("zombie exit");
 }
 
+void
+exit_thread()
+{
+  struct proc *p = myproc();
+
+  if(p == initproc)
+    panic("init exiting");
+
+  // Close all open files.
+  for(int fd = 0; fd < NOFILE; fd++){
+    if(p->ofile[fd]){
+      struct file *f = p->ofile[fd];
+      fileclose(f);
+      p->ofile[fd] = 0;
+    }
+  }
+
+  begin_op();
+  iput(p->cwd);
+  end_op();
+  p->cwd = 0;
+
+  acquire(&wait_lock);
+
+  // Give any children to init.
+  reparent(p);
+
+  // Parent might be sleeping in wait().
+  wakeup(p->parent);
+  
+  acquire(&p->lock);
+  p->xstate = 0;
+  p->state = ZOMBIE;
+
+  release(&wait_lock);
+
+  // Jump into the scheduler, never to return.
+  sched();
+  panic("zombie exit");
+}
+
 // Wait for a child process to exit and return its pid.
 // Return -1 if this process has no children.
 int
@@ -463,6 +526,47 @@ wait(uint64 addr)
             release(&wait_lock);
             return -1;
           }
+          freeproc(pp);
+          release(&pp->lock);
+          release(&wait_lock);
+          return pid;
+        }
+        release(&pp->lock);
+      }
+    }
+
+    // No point waiting if we don't have any children.
+    if(!havekids || killed(p)){
+      release(&wait_lock);
+      return -1;
+    }
+    
+    // Wait for a child to exit.
+    sleep(p, &wait_lock);  //DOC: wait-sleep
+  }
+}
+
+int
+join_thread(uint64 id)
+{
+  struct proc *pp;
+  int havekids, pid;
+  struct proc *p = myproc();
+
+  acquire(&wait_lock);
+
+  for(;;){
+    // Scan through table looking for exited children.
+    havekids = 0;
+    for(pp = proc; pp < &proc[NPROC]; pp++){
+      if(pp->parent == p && pp->pid == id){
+        // make sure the child isn't still in exit() or swtch().
+        acquire(&pp->lock);
+
+        havekids = 1;
+        if(pp->state == ZOMBIE){
+          // Found one.
+          pid = pp->pid;
           freeproc(pp);
           release(&pp->lock);
           release(&wait_lock);
