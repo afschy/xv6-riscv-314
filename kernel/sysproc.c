@@ -112,3 +112,11 @@ sys_thread_exit(void) {
   exit_thread();
   return 0;
 }
+
+uint64
+sys_kernel_release(void) {
+  uint64 addr;
+  argaddr(0, &addr);
+  atomic_release(myproc()->pagetable, addr);
+  return 0;
+}

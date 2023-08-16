@@ -3,7 +3,7 @@
 
 // Mutual exclusion lock.
 struct lock {
-  uint locked;       // Is the lock held?
+  uint8 locked;       // Is the lock held?
 
   // For debugging:
   char *name;        // Name of lock.
@@ -77,6 +77,18 @@ thread_mutex_unlock (struct lock *lk) {
   __sync_synchronize();
   __sync_lock_release(&lk->locked);
   // pop_off();
+}
+
+void
+thread_kernel_unlock(struct lock* lk) {
+  int pid = getpid();
+  if(pid != lk->pid) {
+      printf("Error: lock is not held by %d\n", pid);
+      exit(0);
+  }
+
+  lk->pid = 0;
+  kernel_release(&lk->locked);
 }
 
 #endif

@@ -37,7 +37,8 @@ void do_work(void *arg){
             printf("we will miss an update. old: %d total_balance: %d\n", old, total_balance);
         total_balance = old + 1;
         // thread_spin_unlock(&lock);
-        thread_mutex_unlock(&lock);
+        // thread_mutex_unlock(&lock);
+        thread_kernel_unlock(&lock);
 
     }
   

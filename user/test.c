@@ -1,9 +1,11 @@
 #include "kernel/types.h"
 #include "kernel/stat.h"
 #include "user/user.h"
+#include "user/lock.h"
 
 int c = 100;
 int *arr;
+struct lock lk;
 
 void
 cuck(void* arg) {
@@ -24,23 +26,14 @@ cuck(void* arg) {
 
 int
 main() {
-    printf("Calling malloc\n");
-    void* stack1 = malloc(4096);
-    void* stack2 = malloc(4096);
-    /*int tid1 = */thread_create(cuck, (void*)1125, stack1);
-    // sleep(2);
-    /*int tid2 = */thread_create(cuck, (void*)75, stack2);
-    
-    arr = malloc(10 * sizeof(uint32));
-    for(int i=0; i<5; i++)
-        arr[i] = i+1;
-    // sleep(10);
-    // printf("Malloc for arr done\n");
-    // thread_join(tid1);
-    // thread_join(tid2);
-    // printf("c after edit = %d\n", c);
-    for(int i=0; i<5; i++)
-        printf("%d ", arr[i]);
-    printf("\n");
+    printf("Calling malloc %d\n", sizeof(uint32));
+    thread_lock_init(&lk, "test");
+    thread_spin_lock(&lk);
+    thread_kernel_unlock(&lk);
+    printf("kernel release done\n");
+
+    thread_spin_lock(&lk);
+    thread_spin_unlock(&lk);
+    printf("acquire-release\n");
     return 0;
 }
