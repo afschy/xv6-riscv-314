@@ -117,6 +117,17 @@ uint64
 sys_kernel_release(void) {
   uint64 addr;
   argaddr(0, &addr);
-  atomic_release(myproc()->pagetable, addr);
+  return atomic_release(myproc()->pagetable, addr);
+}
+
+uint64
+sys_suspend_self(void) {
   return 0;
+}
+
+uint64
+sys_wake_other(void) {
+  int pid;
+  argint(0, &pid);
+  return pid;
 }

@@ -24,3 +24,5 @@
 #define SYS_thread_join   23
 #define SYS_thread_exit   24
 #define SYS_kernel_release 25
+#define SYS_suspend_self   26
+#define SYS_wake_other     27

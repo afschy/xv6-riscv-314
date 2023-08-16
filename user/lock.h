@@ -88,7 +88,10 @@ thread_kernel_unlock(struct lock* lk) {
   }
 
   lk->pid = 0;
-  kernel_release(&lk->locked);
+  if(kernel_release(&lk->locked)) {
+    __sync_synchronize();
+    __sync_lock_release(&lk->locked);
+  }
 }
 
 #endif

@@ -40,3 +40,5 @@ entry("thread_create");
 entry("thread_join");
 entry("thread_exit");
 entry("kernel_release");
+entry("suspend_self");
+entry("wake_other");

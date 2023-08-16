@@ -25,7 +25,9 @@ int uptime(void);
 int thread_create(void(*fcn)(void*), void* arg, void* stack);
 int thread_join(int thread_id);
 void thread_exit(void);
-void kernel_release(uint8* lk);
+int kernel_release(uint8* lk);
+void suspend_self(void);
+void wake_other(int pid);
 
 // ulib.c
 int stat(const char*, struct stat*);
