@@ -1,6 +1,7 @@
 #include "kernel/types.h"
 #include "kernel/stat.h"
 #include "user/user.h"
+#include "user/lock.h"
 
 struct balance {
     char name[32];
@@ -8,6 +9,7 @@ struct balance {
 };
 
 volatile int total_balance = 0;
+struct lock lock;
 
 volatile unsigned int delay (unsigned int d) {
    unsigned int i; 
@@ -27,14 +29,15 @@ void do_work(void *arg){
 
     for (i = 0; i < b->amount; i++) { 
         // lock and mlock will be implemented by you.
-         // thread_spin_lock(&lock);
-         // thread_mutex_lock(&mlock);
-         old = total_balance;
-         delay(100000);
-	 // if(old != total_balance)  printf("we will miss an update. old: %d total_balance: %d\n", old, total_balance);
-         total_balance = old + 1;
-         //thread_spin_unlock(&lock);
-         // thread_mutex_lock(&mlock);
+        // thread_spin_lock(&lock);
+        thread_mutex_lock(&lock);
+        old = total_balance;
+        delay(100000);
+        if(old != total_balance)
+            printf("we will miss an update. old: %d total_balance: %d\n", old, total_balance);
+        total_balance = old + 1;
+        // thread_spin_unlock(&lock);
+        thread_mutex_unlock(&lock);
 
     }
   
@@ -54,7 +57,7 @@ int main(int argc, char *argv[]) {
 
   s1 = malloc(4096); // 4096 is the PGSIZE defined in kernel/riscv.h
   s2 = malloc(4096);
-
+  thread_lock_init(&lock, "temp");
   thread1 = thread_create(do_work, (void*)&b1, s1);
   thread2 = thread_create(do_work, (void*)&b2, s2); 
 
