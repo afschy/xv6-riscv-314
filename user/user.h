@@ -26,7 +26,7 @@ int thread_create(void(*fcn)(void*), void* arg, void* stack);
 int thread_join(int thread_id);
 void thread_exit(void);
 int kernel_release(uint8* lk);
-void suspend_self(void);
+void suspend_self(uint8* lk);
 void wake_other(int pid);
 
 // ulib.c

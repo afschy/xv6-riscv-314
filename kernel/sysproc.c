@@ -122,6 +122,9 @@ sys_kernel_release(void) {
 
 uint64
 sys_suspend_self(void) {
+  uint64 addr;
+  argaddr(0, &addr);
+  release_and_suspend(addr);
   return 0;
 }
 
@@ -129,5 +132,6 @@ uint64
 sys_wake_other(void) {
   int pid;
   argint(0, &pid);
+  wake_by_pid(pid);
   return pid;
 }

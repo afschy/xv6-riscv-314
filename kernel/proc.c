@@ -714,6 +714,35 @@ sleep(void *chan, struct spinlock *lk)
   acquire(lk);
 }
 
+void
+release_and_suspend(uint64 addr)
+{
+  struct proc *p = myproc();
+
+  acquire(&p->lock);
+  atomic_release(p->pagetable, addr);
+
+  // Go to sleep.
+  p->state = SLEEPING;
+  sched();
+  release(&p->lock);
+  // acquire(lk);
+}
+
+void
+wake_by_pid(int pid) {
+  struct proc *p;
+
+  for(p = proc; p < &proc[NPROC]; p++) {
+    if(p == myproc())
+      continue;
+    acquire(&p->lock);
+    if(p->state == SLEEPING && p->pid == pid)
+      p->state = RUNNABLE;
+    release(&p->lock);
+  }
+}
+
 // Wake up all processes sleeping on chan.
 // Must be called without any p->lock.
 void

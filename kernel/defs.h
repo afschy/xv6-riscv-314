@@ -110,6 +110,8 @@ int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
 int             new_thread(void*, void*, void*);
 void            exit_thread(void);
+void            release_and_suspend(uint64);
+void            wake_by_pid(int);
 
 // swtch.S
 void            swtch(struct context*, struct context*);
