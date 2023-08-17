@@ -2,7 +2,7 @@
 #include "kernel/stat.h"
 #include "user/user.h"
 #include "user/cond.h"
-#define arrsize 4096
+#define arrsize 20 * 4096
 
 struct cond con;
 struct lock con_mutex;
@@ -57,7 +57,7 @@ main(int argc, char* argv[]) {
     // int t2 = thread_create(sleeper, (void*)0, s2);
     int t3 = thread_create(waker, (void*)0, s3);
 
-    arr = malloc(arrsize);
+    arr = malloc(arrsize * sizeof(int));
     printf("%d\n", sbrk(0));
     arr[arrsize - 1] = 12345;
     printf("%d\n", arr[arrsize - 1]);
