@@ -309,12 +309,13 @@ userinit(void)
 int
 growproc(int n)
 {
-  uint64 sz, oldsz;
+  // printf("entering growproc\n");
+  uint64 sz;
   struct proc *p = myproc();
 
   acquire(p->memlock);
   sz = p->sz;
-  oldsz = p->sz;
+  // oldsz = p->sz;
   if(n > 0){
     if((sz = uvmalloc(p->pagetable, sz, sz + n, PTE_W)) == 0) {
       release(p->memlock);
@@ -330,15 +331,16 @@ growproc(int n)
     if(p->mem_id != pp->mem_id || pp == p)
       continue;
     if(n >= 0)
-      uvmmirror_range(p->pagetable, pp->pagetable, oldsz, sz);
+      uvmmirror_range(p->pagetable, pp->pagetable, PGROUNDUP(pp->sz), sz);
     else {
-      int npages = (PGROUNDUP(oldsz) - PGROUNDUP(sz)) / PGSIZE;
+      int npages = (PGROUNDUP(pp->sz) - PGROUNDUP(sz)) / PGSIZE;
       uvmunmap(pp->pagetable, PGROUNDUP(sz), npages, 0);
     }
     pp->sz = p->sz;
   }
 
   release(p->memlock);
+  // printf("exiting growproc\n");
   return 0;
 }
 

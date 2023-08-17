@@ -10,6 +10,7 @@ struct balance {
 
 volatile int total_balance = 0;
 struct lock lock;
+struct lock print_lock;
 
 volatile unsigned int delay (unsigned int d) {
    unsigned int i; 
@@ -25,7 +26,9 @@ void do_work(void *arg){
     int old;
    
     struct balance *b = (struct balance*) arg; 
+    thread_mutex_lock(&print_lock);
     printf( "Starting do_work: s:%s\n", b->name);
+    thread_mutex_unlock(&print_lock);
 
     for (i = 0; i < b->amount; i++) { 
         // lock and mlock will be implemented by you.
@@ -37,8 +40,8 @@ void do_work(void *arg){
             printf("we will miss an update. old: %d total_balance: %d\n", old, total_balance);
         total_balance = old + 1;
         // thread_spin_unlock(&lock);
-        // thread_mutex_unlock(&lock);
-        thread_kernel_unlock(&lock);
+        thread_mutex_unlock(&lock);
+        // thread_kernel_unlock(&lock);
 
     }
   
@@ -59,6 +62,7 @@ int main(int argc, char *argv[]) {
   s1 = malloc(4096); // 4096 is the PGSIZE defined in kernel/riscv.h
   s2 = malloc(4096);
   thread_lock_init(&lock, "temp");
+  thread_lock_init(&print_lock, "print_lock");
   thread1 = thread_create(do_work, (void*)&b1, s1);
   thread2 = thread_create(do_work, (void*)&b2, s2); 
 
