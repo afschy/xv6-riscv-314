@@ -1,6 +1,7 @@
 #include "kernel/types.h"
 #include "kernel/stat.h"
 #include "user/user.h"
+#include "user/semaphore.h"
 
 // struct queue{
 // 	int arr[16];
@@ -31,80 +32,99 @@
 // 		size--;
 // 	}
 // };
-// struct queue q;
-// // a mutex object lock 
-// // a semaphore object empty
-// // a semaphore object full
+struct queue q;
+struct lock mutex; // a mutex object lock 
+struct semaphore empty; // a semaphore object empty
+struct semaphore full; // a semaphore object full
 
-// void init_semaphore()
-// {
-// 	// initialize mutex lock
-// 	// initialize semaphore empty with 5
-// 	// initialize semaphore full with 0
+void init_semaphore()
+{
+	// initialize mutex lock
+    thread_lock_init(&mutex, "mutex");
+	// initialize semaphore empty with 5
+    sem_init(&empty, 5);
+	// initialize semaphore full with 0
+    sem_init(&full, 0);
+	q_init(&q);
+}
 
-// }
+void
+ProducerFunc(void * arg)
+{
+	thread_mutex_lock(&mutex);
+	printf("%s, pid = %d\n",(char*)arg, getpid());
+	thread_mutex_unlock(&mutex);
 
-// void * ProducerFunc(void * arg)
-// {	
-// 	printf("%s\n",(char*)arg);
-// 	int i;
-// 	for(i=1;i<=10;i++)
-// 	{
-// 		// wait for semphore empty
+	int i;
+	for(i=1;i<=10;i++)
+	{
+		// wait for semphore empty
+		sem_wait(&empty);
+		// wait for mutex lock
+		thread_mutex_lock(&mutex);
+		sleep(1);	
+		q_push(&q, i);
+		printf("producer produced item %d\n",i);
+		// unlock mutex lock	
+		thread_mutex_unlock(&mutex);
+		// post semaphore full
+		sem_post(&full);
+		// sleep(1);
+	}
+	thread_exit();
+}
 
-// 		// wait for mutex lock
-		
-// 		sleep(1);	
-// 		q.push(i);
-// 		printf("producer produced item %d\n",i);
-		
-// 		// unlock mutex lock	
-// 		// post semaphore full
-// 	}
-// }
+void
+ConsumerFunc(void * arg)
+{
+	thread_mutex_lock(&mutex);
+	printf("%s, pid = %d\n",(char*)arg, getpid());
+	thread_mutex_unlock(&mutex);
 
-// void * ConsumerFunc(void * arg)
-// {
-// 	printf("%s\n",(char*)arg);
-// 	int i;
-// 	for(i=1;i<=10;i++)
-// 	{	
-// 		// wait for semphore full
-// 		// wait for mutex lock
- 		
-			
-// 		sleep(1);
-// 		int item = q.front();
-// 		q.pop();
-// 		printf("consumer consumed item %d\n",item);	
+	int i;
+	for(i=1;i<=10;i++)
+	{	
+		// wait for semphore full
+		sem_wait(&full);
+		// wait for mutex lock
+		thread_mutex_lock(&mutex);
+		sleep(1);
+		int item = q_front(&q);
+		q_pop(&q);
+		printf("\tconsumer consumed item %d\n",item);	
 
-
-// 		// unlock mutex lock
-// 		// post semaphore empty		
-// 	}
-// }
+		// unlock mutex lock
+		thread_mutex_unlock(&mutex);
+		// post semaphore empty
+		sem_post(&empty);
+		// sleep(1);
+	}
+	// printf("%d\n", full.val);
+	thread_exit();
+}
 
 int main(void)
 {	
 	
-// 	init_semaphore();
+	init_semaphore();
 	
-// 	char * message1 = "i am producer";
-// 	char * message2 = "i am consumer";
+	char * message1 = "i am producer";
+	char * message2 = "i am consumer";
 
 
-// 	void *s1, *s2;
-//   	int thread1, thread2, r1, r2;
+	void *s1, *s2;
+  	int thread1, thread2, r1, r2;
 
-//   	s1 = malloc(4096);
-//   	s2 = malloc(4096);
+  	s1 = malloc(4096);
+  	s2 = malloc(4096);
 
-//   	thread1 = thread_create(ProducerFunc, (void*)message1, s1);
-//   	thread2 = thread_create(ConsumerFunc, (void*)message2, s2); 
+  	thread1 = thread_create(ProducerFunc, (void*)message1, s1);
+  	thread2 = thread_create(ConsumerFunc, (void*)message2, s2); 
 
-//   	r1 = thread_join();
-//   	r2 = thread_join();	
+  	r1 = thread_join(thread1);
+	printf("Joined %d\n", r1);
+  	r2 = thread_join(thread2);
+	printf("Joined %d\n", r2);
 	
-// 	exit();
-    return 0;
+	exit(0);
 }

@@ -20,18 +20,21 @@ sleeper(void* arg) {
 void
 waker(void* arg) {
     sleep(20);
-    printf("going to wake a thread\n");
-    thread_mutex_lock(&con_mutex);
-    cond_signal(&con, &con_mutex);
-
-    sleep(20);
-    printf("going to wake another thread\n");
-    thread_mutex_lock(&con_mutex);
-    cond_signal(&con, &con_mutex);
-
-    // printf("going to broadcast\n");
+    // printf("going to wake a thread\n");
     // thread_mutex_lock(&con_mutex);
-    // cond_broadcast(&con, &con_mutex);
+    // cond_signal(&con);
+    // thread_mutex_unlock(&con_mutex);
+
+    // sleep(20);
+    // printf("going to wake another thread\n");
+    // thread_mutex_lock(&con_mutex);
+    // cond_signal(&con);
+    // thread_mutex_unlock(&con_mutex);
+
+    printf("going to broadcast\n");
+    thread_mutex_lock(&con_mutex);
+    cond_broadcast(&con);
+    thread_mutex_unlock(&con_mutex);
 
     thread_exit();
 }

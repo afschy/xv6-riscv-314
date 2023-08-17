@@ -27,7 +27,7 @@ cond_wait(struct cond* c, struct lock* mutex) {         // mutex MUST BE HELD by
 }
 
 void
-cond_signal(struct cond* c, struct lock* mutex) {       // mutex MUST BE HELD by the caller
+cond_signal(struct cond* c) {       // mutex MUST BE HELD by the caller
     thread_mutex_lock(&c->q_lock);
     int pid = q_front(&c->q);
     q_pop(&c->q);
@@ -35,11 +35,10 @@ cond_signal(struct cond* c, struct lock* mutex) {       // mutex MUST BE HELD by
 
     if(pid > 0)
         wake_other(pid);
-    thread_mutex_unlock(mutex);
 }
 
 void
-cond_broadcast(struct cond* c, struct lock* mutex) {    // mutex MUST BE HELD by the caller
+cond_broadcast(struct cond* c) {    // mutex MUST BE HELD by the caller
     thread_mutex_lock(&c->q_lock);
     while(c->q.size) {
         int pid = q_front(&c->q);
@@ -48,7 +47,6 @@ cond_broadcast(struct cond* c, struct lock* mutex) {    // mutex MUST BE HELD by
             wake_other(pid);
     }
     thread_mutex_unlock(&c->q_lock);
-    thread_mutex_unlock(mutex);
 }
 
 #endif

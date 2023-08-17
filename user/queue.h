@@ -17,7 +17,7 @@ q_init(struct queue *q) {
 void
 q_push(struct queue *q, int x) {
     q->arr[q->rear] = x;
-    q->rear = (q->rear+1)%16;
+    q->rear = (q->rear+1)%70;
     q->size++;
 }
 int
@@ -28,7 +28,9 @@ q_front(struct queue *q) {
 }
 void
 q_pop(struct queue *q) {
-    q->front = (q->front+1)%16;
+    if(q->size <= 0)
+        return;
+    q->front = (q->front+1)%70;
     q->size--;
 }
 
