@@ -107,4 +107,6 @@ struct proc {
 
   // Variables needed for threading
   int is_thread;               // 1 if this proc is a thread spawned by another thread, 0 otherwise
+  int mem_id;                  // Physical memory address identified
+  struct spinlock* memlock;    // Memory lock, common to all processes sharing the same mem_id
 };

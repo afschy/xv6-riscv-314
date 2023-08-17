@@ -10,10 +10,15 @@ struct cpu cpus[NCPU];
 
 struct proc proc[NPROC];
 
+struct spinlock mlock[NPROC];
+
 struct proc *initproc;
 
 int nextpid = 1;
 struct spinlock pid_lock;
+
+int nextmid = 1;
+struct spinlock mid_lock;
 
 extern void forkret(void);
 static void freeproc(struct proc *p);
@@ -50,11 +55,16 @@ procinit(void)
   struct proc *p;
   
   initlock(&pid_lock, "nextpid");
+  initlock(&mid_lock, "nextmid");
   initlock(&wait_lock, "wait_lock");
+
+  int i=0;
   for(p = proc; p < &proc[NPROC]; p++) {
       initlock(&p->lock, "proc");
+      initlock(&mlock[i], "mlock");
       p->state = UNUSED;
       p->kstack = KSTACK((int) (p - proc));
+      i++;
   }
 }
 
@@ -102,6 +112,19 @@ allocpid()
   return pid;
 }
 
+int
+allocmid()
+{
+  int mid;
+  
+  acquire(&mid_lock);
+  mid = nextmid;
+  nextmid = nextmid + 1;
+  release(&mid_lock);
+
+  return mid;
+}
+
 // Look in the process table for an UNUSED proc.
 // If found, initialize state required to run in the kernel,
 // and return with p->lock held.
@@ -111,6 +134,7 @@ allocproc(void)
 {
   struct proc *p;
 
+  int i = 0;
   for(p = proc; p < &proc[NPROC]; p++) {
     acquire(&p->lock);
     if(p->state == UNUSED) {
@@ -118,11 +142,14 @@ allocproc(void)
     } else {
       release(&p->lock);
     }
+    i++;
   }
   return 0;
 
 found:
   p->pid = allocpid();
+  p->mem_id = allocmid();
+  p->memlock = &mlock[i];
   p->state = USED;
 
   // Allocate a trapframe page.
@@ -160,10 +187,16 @@ freeproc(struct proc *p)
   if(p->trapframe)
     kfree((void*)p->trapframe);
   p->trapframe = 0;
-  if(p->pagetable && p->is_thread)
+  if(p->pagetable && p->is_thread) {
+    acquire(p->memlock);
     thread_freepagetable(p->pagetable, p->sz);
-  else if(p->pagetable)
+    release(p->memlock);
+  }
+  else if(p->pagetable) {
+    acquire(p->memlock);
     proc_freepagetable(p->pagetable, p->sz);
+    release(p->memlock);
+  }
   p->pagetable = 0;
   p->sz = 0;
   p->pid = 0;
@@ -174,6 +207,8 @@ freeproc(struct proc *p)
   p->xstate = 0;
   p->state = UNUSED;
   p->is_thread = 0;
+  p->mem_id = 0;
+  p->memlock = 0;
 }
 
 // Create a user page table for a given process, with no user memory,
@@ -274,18 +309,36 @@ userinit(void)
 int
 growproc(int n)
 {
-  uint64 sz;
+  uint64 sz, oldsz;
   struct proc *p = myproc();
 
+  acquire(p->memlock);
   sz = p->sz;
+  oldsz = p->sz;
   if(n > 0){
     if((sz = uvmalloc(p->pagetable, sz, sz + n, PTE_W)) == 0) {
+      release(p->memlock);
       return -1;
     }
   } else if(n < 0){
     sz = uvmdealloc(p->pagetable, sz, sz + n);
   }
   p->sz = sz;
+
+  struct proc *pp;
+  for(pp = proc; pp < &proc[NPROC]; pp++) {
+    if(p->mem_id != pp->mem_id || pp == p)
+      continue;
+    if(n >= 0)
+      uvmmirror_range(p->pagetable, pp->pagetable, oldsz, sz);
+    else {
+      int npages = (PGROUNDUP(oldsz) - PGROUNDUP(sz)) / PGSIZE;
+      uvmunmap(pp->pagetable, PGROUNDUP(sz), npages, 0);
+    }
+    pp->sz = p->sz;
+  }
+
+  release(p->memlock);
   return 0;
 }
 
@@ -304,12 +357,15 @@ fork(void)
   }
 
   // Copy user memory from parent to child.
+  acquire(p->memlock);
   if(uvmcopy(p->pagetable, np->pagetable, p->sz) < 0){
     freeproc(np);
     release(&np->lock);
+    release(p->memlock);
     return -1;
   }
   np->sz = p->sz;
+  release(p->memlock);
 
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
@@ -352,12 +408,17 @@ new_thread(void* func, void* arg, void* stack)
     return -1;
   }
 
+  acquire(p->memlock);
   if(uvmmirror(p->pagetable, np->pagetable, p->sz) < 0){
     freeproc(np);
     release(&np->lock);
+    release(p->memlock);
     return -1;
   }
   np->sz = p->sz;
+  np->mem_id = p->mem_id;
+  np->memlock = p->memlock;
+  release(p->memlock);
 
   *(np->trapframe) = *(p->trapframe);
   np->trapframe->epc = (uint64)func;
@@ -401,10 +462,13 @@ reparent(struct proc *p)
     if(pp->parent == p){
       pp->parent = initproc;
       if(pp->is_thread == 1) {
+        acquire(p->memlock);
         uvmunmap(pp->pagetable, 0, PGROUNDUP(pp->sz)/PGSIZE, 0);
         pp->sz = 0;
         // uvmcopy(p->pagetable, pp->pagetable, p->sz);
         kill(pp->pid);
+        pp->mem_id = 0;
+        release(p->memlock);
       }
       wakeup(initproc);
     }
