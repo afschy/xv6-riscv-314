@@ -8,9 +8,9 @@ int *arr;
 struct lock lk;
 
 void
-cuck(void* arg) {
+tempfunc(void* arg) {
     // int a = (uint64)arg-10, b = (uint64)arg+10;
-    // printf("In cuck %d\n", a + b - c);
+    // printf("In tempfunc %d\n", a + b - c);
     c = 999;
     sleep(20);
     for(int i=0; i<5; i++) {
