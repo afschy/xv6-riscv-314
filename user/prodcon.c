@@ -36,6 +36,7 @@ struct queue q;
 struct lock mutex; // a mutex object lock 
 struct semaphore empty; // a semaphore object empty
 struct semaphore full; // a semaphore object full
+struct lock print_lock;
 
 void init_semaphore()
 {
@@ -46,14 +47,15 @@ void init_semaphore()
 	// initialize semaphore full with 0
     sem_init(&full, 0);
 	q_init(&q);
+	thread_lock_init(&print_lock, "prlock");
 }
 
 void
 ProducerFunc(void * arg)
 {
-	thread_mutex_lock(&mutex);
+	thread_mutex_lock(&print_lock);
 	printf("%s, pid = %d\n",(char*)arg, getpid());
-	thread_mutex_unlock(&mutex);
+	thread_mutex_unlock(&print_lock);
 
 	int i;
 	for(i=1;i<=10;i++)
@@ -64,7 +66,9 @@ ProducerFunc(void * arg)
 		thread_mutex_lock(&mutex);
 		sleep(1);	
 		q_push(&q, i);
+		thread_mutex_lock(&print_lock);
 		printf("producer produced item %d\n",i);
+		thread_mutex_unlock(&print_lock);
 		// unlock mutex lock	
 		thread_mutex_unlock(&mutex);
 		// post semaphore full
@@ -77,9 +81,9 @@ ProducerFunc(void * arg)
 void
 ConsumerFunc(void * arg)
 {
-	thread_mutex_lock(&mutex);
+	thread_mutex_lock(&print_lock);
 	printf("%s, pid = %d\n",(char*)arg, getpid());
-	thread_mutex_unlock(&mutex);
+	thread_mutex_unlock(&print_lock);
 
 	int i;
 	for(i=1;i<=10;i++)
@@ -91,7 +95,9 @@ ConsumerFunc(void * arg)
 		sleep(1);
 		int item = q_front(&q);
 		q_pop(&q);
+		thread_mutex_lock(&print_lock);
 		printf("\tconsumer consumed item %d\n",item);	
+		thread_mutex_unlock(&print_lock);
 
 		// unlock mutex lock
 		thread_mutex_unlock(&mutex);

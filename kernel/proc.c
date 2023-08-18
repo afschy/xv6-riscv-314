@@ -789,7 +789,7 @@ release_and_suspend(uint64 addr)
   atomic_release(p->pagetable, addr);
 
   // Go to sleep.
-  p->state = SLEEPING;
+  p->state = COND_WAITING;
   sched();
   release(&p->lock);
   // acquire(lk);
@@ -803,8 +803,12 @@ wake_by_pid(int pid) {
     if(p == myproc())
       continue;
     acquire(&p->lock);
-    if(p->state == SLEEPING && p->pid == pid)
+    if(p->state == COND_WAITING && p->pid == pid) {
+      // printf("Waking %d\n", pid);
       p->state = RUNNABLE;
+      release(&p->lock);
+      return;
+    }
     release(&p->lock);
   }
 }
