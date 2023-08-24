@@ -399,7 +399,7 @@ fork(void)
 }
 
 int
-new_thread(void* func, void* arg, void* stack)
+new_thread(void* func, void* arg, void* stack, void* ret_addr)
 {
   int i, pid;
   struct proc *np;
@@ -427,6 +427,7 @@ new_thread(void* func, void* arg, void* stack)
   np->trapframe->sp = (uint64)stack + PGSIZE;
   np->trapframe->sp -= np->trapframe->sp % 16;
   np->trapframe->a0 = (uint64)arg;
+  np->trapframe->ra = (uint64)ret_addr;
 
   // increment reference counts on open file descriptors.
   for(i = 0; i < NOFILE; i++)

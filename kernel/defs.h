@@ -108,7 +108,7 @@ void            yield(void);
 int             either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
 int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
-int             new_thread(void*, void*, void*);
+int             new_thread(void*, void*, void*, void*);
 void            exit_thread(void);
 void            release_and_suspend(uint64);
 void            wake_by_pid(int);

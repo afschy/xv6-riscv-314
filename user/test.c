@@ -2,6 +2,7 @@
 #include "kernel/stat.h"
 #include "user/user.h"
 #include "user/lock.h"
+#include "user/wrapper.h"
 
 int c = 100;
 int *arr;

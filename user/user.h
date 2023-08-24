@@ -22,7 +22,7 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
-int thread_create(void(*fcn)(void*), void* arg, void* stack);
+int thread_create_kernel(void(*fcn)(void*), void* arg, void* stack, void* ret_addr);
 int thread_join(int thread_id);
 void thread_exit(void);
 int kernel_release(uint8* lk);

@@ -2,7 +2,8 @@
 #include "kernel/stat.h"
 #include "user/user.h"
 #include "user/cond.h"
-#define arrsize 4 * 4096
+#include "user/wrapper.h"
+int arrsize = 4 * 4096;
 
 struct cond con;
 struct lock con_mutex;
@@ -14,7 +15,8 @@ sleeper(void* arg) {
     printf("t1: %d, %d\n", sbrk(0), arr[arrsize - 1]);
     free(arr);
     printf("free done\n");
-    arr = malloc(arrsize * sizeof(int) * 2);
+    arrsize *= 2;
+    arr = malloc(arrsize * sizeof(int));
     arr[arrsize-1] = 31;
     printf("new malloc done\n");
     // thread_mutex_lock(&con_mutex);
@@ -31,7 +33,7 @@ sleeper(void* arg) {
     // int t2 = thread_create(sleeper, (void*)0, s2);
     thread_create(sleeper, (void*)0, s3);
 
-    thread_exit();
+    // thread_exit();
 }
 
 void
@@ -40,7 +42,8 @@ waker(void* arg) {
     printf("t2: %d, %d\n", sbrk(0), arr[arrsize - 1]);
     free(arr);
     printf("free done\n");
-    arr = malloc(arrsize * sizeof(int) * 4);
+    arrsize *= 4;
+    arr = malloc(arrsize * sizeof(int));
     arr[arrsize-1] = 999;
     printf("new malloc done\n");
     printf("t2: %d, %d\n", sbrk(0), arr[arrsize - 1]);
@@ -60,7 +63,7 @@ waker(void* arg) {
     // cond_broadcast(&con);
     // thread_mutex_unlock(&con_mutex);
 
-    thread_exit();
+    // thread_exit();
 }
 
 int

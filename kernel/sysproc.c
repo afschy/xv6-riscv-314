@@ -91,13 +91,14 @@ sys_uptime(void)
 }
 
 uint64
-sys_thread_create(void) {
-  uint64 func, arg, stack;
+sys_thread_create_kernel(void) {
+  uint64 func, arg, stack, ret_addr;
   argaddr(0, &func);
   argaddr(1, &arg);
   argaddr(2, &stack);
+  argaddr(3, &ret_addr);
 
-  return new_thread((void*)func, (void*)arg, (void*)stack);
+  return new_thread((void*)func, (void*)arg, (void*)stack, (void*)ret_addr);
 }
 
 uint64
