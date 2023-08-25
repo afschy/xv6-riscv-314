@@ -174,6 +174,7 @@ found:
   p->context.sp = p->kstack + PGSIZE;
 
   p->is_thread = 0;
+  p->thread_kill = 0;
 
   return p;
 }
@@ -209,6 +210,7 @@ freeproc(struct proc *p)
   p->is_thread = 0;
   p->mem_id = 0;
   p->memlock = 0;
+  p->thread_kill = 0;
 }
 
 // Create a user page table for a given process, with no user memory,
@@ -462,19 +464,21 @@ reparent(struct proc *p)
   struct proc *pp;
 
   for(pp = proc; pp < &proc[NPROC]; pp++){
-    if(pp->parent == p){
-      pp->parent = initproc;
-      if(pp->is_thread == 1) {
-        acquire(p->memlock);
+    if(pp->parent != p)
+      continue;
+    pp->parent = initproc;
+    if(pp->is_thread == 1) {
+      tkill(pp->pid);
+      // printf("killing %d\n", pp->pid);
+      acquire(p->memlock);
+      if(pp->sz > 0)
         uvmunmap(pp->pagetable, 0, PGROUNDUP(pp->sz)/PGSIZE, 0);
-        pp->sz = 0;
-        // uvmcopy(p->pagetable, pp->pagetable, p->sz);
-        kill(pp->pid);
-        pp->mem_id = 0;
-        release(p->memlock);
-      }
-      wakeup(initproc);
+      pp->sz = 0;
+      pp->mem_id = 0;
+      release(p->memlock);
+      reparent(pp);
     }
+    wakeup(initproc);
   }
 }
 
@@ -844,6 +848,27 @@ kill(int pid)
     acquire(&p->lock);
     if(p->pid == pid){
       p->killed = 1;
+      if(p->state == SLEEPING){
+        // Wake process from sleep().
+        p->state = RUNNABLE;
+      }
+      release(&p->lock);
+      return 0;
+    }
+    release(&p->lock);
+  }
+  return -1;
+}
+
+int
+tkill(int pid)
+{
+  struct proc *p;
+
+  for(p = proc; p < &proc[NPROC]; p++){
+    acquire(&p->lock);
+    if(p->pid == pid){
+      p->thread_kill = 1;
       if(p->state == SLEEPING){
         // Wake process from sleep().
         p->state = RUNNABLE;

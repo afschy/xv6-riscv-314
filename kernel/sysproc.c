@@ -136,3 +136,9 @@ sys_wake_other(void) {
   wake_by_pid(pid);
   return pid;
 }
+
+uint64
+sys_yield_cpu(void) {
+  yield();
+  return 0;
+}

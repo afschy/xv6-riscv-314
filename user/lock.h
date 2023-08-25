@@ -58,7 +58,7 @@ thread_mutex_lock(struct lock *lk) {
   }
 
   while(__sync_lock_test_and_set(&lk->locked, 1) != 0)
-    sleep(1);
+    yield_cpu();
 
   __sync_synchronize();
   lk->pid = pid;

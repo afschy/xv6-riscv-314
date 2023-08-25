@@ -28,6 +28,7 @@ void thread_exit(void);
 int kernel_release(uint8* lk);
 void suspend_self(uint8* lk);
 void wake_other(int pid);
+void yield_cpu(void);
 
 // ulib.c
 int stat(const char*, struct stat*);

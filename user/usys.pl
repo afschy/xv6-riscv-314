@@ -42,3 +42,4 @@ entry("thread_exit");
 entry("kernel_release");
 entry("suspend_self");
 entry("wake_other");
+entry("yield_cpu");

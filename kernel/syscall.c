@@ -107,6 +107,7 @@ extern uint64 sys_thread_exit(void);
 extern uint64 sys_kernel_release(void);
 extern uint64 sys_suspend_self(void);
 extern uint64 sys_wake_other(void);
+extern uint64 sys_yield_cpu(void);
 
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
@@ -138,6 +139,7 @@ static uint64 (*syscalls[])(void) = {
 [SYS_kernel_release] sys_kernel_release,
 [SYS_suspend_self]  sys_suspend_self,
 [SYS_wake_other]    sys_wake_other,
+[SYS_yield_cpu] sys_yield_cpu,
 };
 
 void

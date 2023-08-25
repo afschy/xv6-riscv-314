@@ -26,3 +26,4 @@
 #define SYS_kernel_release 25
 #define SYS_suspend_self   26
 #define SYS_wake_other     27
+#define SYS_yield_cpu   28
