@@ -2,7 +2,7 @@
 #include "kernel/stat.h"
 #include "user/user.h"
 #include "user/cond.h"
-#include "user/wrapper.h"
+#include "user/thread_wrapper.h"
 int arrsize = 4 * 4096;
 
 struct cond con;

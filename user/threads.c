@@ -2,7 +2,7 @@
 #include "kernel/stat.h"
 #include "user/user.h"
 #include "user/lock.h"
-#include "user/wrapper.h"
+#include "user/thread_wrapper.h"
 
 struct balance {
     char name[32];

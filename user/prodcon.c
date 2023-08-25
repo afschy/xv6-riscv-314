@@ -2,7 +2,7 @@
 #include "kernel/stat.h"
 #include "user/user.h"
 #include "user/semaphore.h"
-#include "user/wrapper.h"
+#include "user/thread_wrapper.h"
 
 // struct queue{
 // 	int arr[16];
