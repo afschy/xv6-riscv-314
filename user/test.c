@@ -4,34 +4,41 @@
 #include "user/lock.h"
 #include "user/thread_wrapper.h"
 
+int arrsize = 4 * 4096;
+
 int c = 100;
 int *arr;
 struct lock lk;
 
 void
 f2(void* arg) {
-    printf("In f2\n");
-    sleep(30);
-    printf("f2 woken\n");
-    while(1);
+    sleep(20);
+    printf("f2 %d, %d\n", sbrk(0), arr[arrsize-1]);
 }
 
 void
 f1(void* arg) {
-    printf("In f1\n");
-    void *s = malloc(4096);
-    thread_create(f2, 0, s);
-    sleep(40);
-    printf("f1 woken\n");
-    while(1);
+    sleep(10);
+    printf("f1 %d, %d\n", sbrk(0), arr[arrsize-1]);
+    free(arr);
+    arrsize *= 4;
+    arr = malloc(arrsize * sizeof(int));
+    arr[arrsize-1] = 222;
 }
 
 int
 main() {
     void *s1 = malloc(4096);
     void *s2 = malloc(4096);
-    thread_create(f1, 0, s1);
-    thread_create(f1, 0, s2);
-    sleep(10);
+    int t1 = thread_create(f1, 0, s1);
+    int t2 = thread_create(f2, 0, s2);
+    printf("threads created\n");
+
+    arr = malloc(arrsize * sizeof(int));
+    arr[arrsize-1] = 111;
+    printf("main %d, %d\n", sbrk(0), arr[arrsize-1]);
+
+    thread_join(t1);
+    thread_join(t2);
     return 0;
 }

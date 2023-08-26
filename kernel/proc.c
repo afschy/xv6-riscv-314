@@ -174,9 +174,18 @@ found:
   p->context.sp = p->kstack + PGSIZE;
 
   p->is_thread = 0;
-  p->thread_kill = 0;
 
   return p;
+}
+
+int
+count_mem_id(int id) {
+  struct proc *p;
+  int count = 0;
+  for(p = proc; p < &proc[NPROC]; p++) {
+    if(p->mem_id == id) count++;
+  }
+  return count;
 }
 
 // free a proc structure and the data hanging from it,
@@ -188,16 +197,20 @@ freeproc(struct proc *p)
   if(p->trapframe)
     kfree((void*)p->trapframe);
   p->trapframe = 0;
-  if(p->pagetable && p->is_thread) {
-    acquire(p->memlock);
-    thread_freepagetable(p->pagetable, p->sz);
-    release(p->memlock);
+
+  acquire(p->memlock);
+  int mem_id_count = count_mem_id(p->mem_id);
+  if(p->pagetable && mem_id_count <= 1) {
+    // printf("proc free %d\n", p->pid);
+    proc_freepagetable(p->pagetable, p->sz);
   }
   else if(p->pagetable) {
-    acquire(p->memlock);
-    proc_freepagetable(p->pagetable, p->sz);
-    release(p->memlock);
+    // printf("thread free %d\n", p->pid);
+    thread_freepagetable(p->pagetable, p->sz);
   }
+  p->mem_id = 0;
+  release(p->memlock);
+
   p->pagetable = 0;
   p->sz = 0;
   p->pid = 0;
@@ -210,7 +223,6 @@ freeproc(struct proc *p)
   p->is_thread = 0;
   p->mem_id = 0;
   p->memlock = 0;
-  p->thread_kill = 0;
 }
 
 // Create a user page table for a given process, with no user memory,
@@ -467,17 +479,8 @@ reparent(struct proc *p)
     if(pp->parent != p)
       continue;
     pp->parent = initproc;
-    if(pp->is_thread == 1) {
-      tkill(pp->pid);
-      // printf("killing %d\n", pp->pid);
-      acquire(p->memlock);
-      if(pp->sz > 0)
-        uvmunmap(pp->pagetable, 0, PGROUNDUP(pp->sz)/PGSIZE, 0);
-      pp->sz = 0;
-      pp->mem_id = 0;
-      release(p->memlock);
-      reparent(pp);
-    }
+    if(pp->is_thread)
+      kill(pp->pid);
     wakeup(initproc);
   }
 }
@@ -794,7 +797,7 @@ release_and_suspend(uint64 addr)
   atomic_release(p->pagetable, addr);
 
   // Go to sleep.
-  p->state = COND_WAITING;
+  p->state = SLEEPING;
   sched();
   release(&p->lock);
   // acquire(lk);
@@ -808,7 +811,7 @@ wake_by_pid(int pid) {
     if(p == myproc())
       continue;
     acquire(&p->lock);
-    if(p->state == COND_WAITING && p->pid == pid) {
+    if(p->state == SLEEPING && p->pid == pid) {
       // printf("Waking %d\n", pid);
       p->state = RUNNABLE;
       release(&p->lock);
@@ -848,27 +851,6 @@ kill(int pid)
     acquire(&p->lock);
     if(p->pid == pid){
       p->killed = 1;
-      if(p->state == SLEEPING){
-        // Wake process from sleep().
-        p->state = RUNNABLE;
-      }
-      release(&p->lock);
-      return 0;
-    }
-    release(&p->lock);
-  }
-  return -1;
-}
-
-int
-tkill(int pid)
-{
-  struct proc *p;
-
-  for(p = proc; p < &proc[NPROC]; p++){
-    acquire(&p->lock);
-    if(p->pid == pid){
-      p->thread_kill = 1;
       if(p->state == SLEEPING){
         // Wake process from sleep().
         p->state = RUNNABLE;

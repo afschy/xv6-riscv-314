@@ -79,7 +79,7 @@ struct trapframe {
   /* 280 */ uint64 t6;
 };
 
-enum procstate { UNUSED, USED, SLEEPING, COND_WAITING, RUNNABLE, RUNNING, ZOMBIE };
+enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 // Per-process state
 struct proc {
@@ -109,5 +109,4 @@ struct proc {
   int is_thread;               // 1 if this proc is a thread spawned by another thread, 0 otherwise
   int mem_id;                  // Physical memory address identified
   struct spinlock* memlock;    // Memory lock, common to all processes sharing the same mem_id
-  int thread_kill;
 };
