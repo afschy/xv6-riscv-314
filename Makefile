@@ -136,6 +136,7 @@ UPROGS=\
 	$U/_test\
 	$U/_test2\
 	$U/_prodcon\
+	$U/_malloctest\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

@@ -479,8 +479,15 @@ reparent(struct proc *p)
     if(pp->parent != p)
       continue;
     pp->parent = initproc;
-    if(pp->is_thread)
-      kill(pp->pid);
+
+    acquire(&pp->lock);
+    if(pp->is_thread) {
+      pp->killed = 1;
+      if(pp->state == SLEEPING)
+        pp->state = RUNNABLE;
+    }
+    release(&pp->lock);
+    
     wakeup(initproc);
   }
 }
