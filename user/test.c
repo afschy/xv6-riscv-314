@@ -2,7 +2,6 @@
 #include "kernel/stat.h"
 #include "user/user.h"
 #include "user/lock.h"
-#include "user/thread_wrapper.h"
 
 int arrsize = 4 * 4096;
 
@@ -14,6 +13,7 @@ void
 f2(void* arg) {
     sleep(20);
     printf("f2 %d, %d\n", sbrk(0), arr[arrsize-1]);
+    thread_exit();
 }
 
 void
@@ -24,6 +24,7 @@ f1(void* arg) {
     arrsize *= 4;
     arr = malloc(arrsize * sizeof(int));
     arr[arrsize-1] = 222;
+    thread_exit();
 }
 
 int

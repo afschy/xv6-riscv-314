@@ -2,7 +2,6 @@
 #include "kernel/stat.h"
 #include "user/user.h"
 #include "user/semaphore.h"
-#include "user/thread_wrapper.h"
 
 // struct queue{
 // 	int arr[16];
@@ -76,7 +75,7 @@ ProducerFunc(void * arg)
 		sem_post(&full);
 		// sleep(1);
 	}
-	// thread_exit();
+	thread_exit();
 }
 
 void
@@ -107,7 +106,7 @@ ConsumerFunc(void * arg)
 		// sleep(1);
 	}
 	// printf("%d\n", full.val);
-	// thread_exit();
+	thread_exit();
 }
 
 int main(void)

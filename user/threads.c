@@ -2,7 +2,6 @@
 #include "kernel/stat.h"
 #include "user/user.h"
 #include "user/lock.h"
-#include "user/thread_wrapper.h"
 
 struct balance {
     char name[32];
@@ -48,7 +47,7 @@ void do_work(void *arg){
   
     printf( "Done s:%x\n", b->name);
 
-    // thread_exit();
+    thread_exit();
     // return;
 }
 

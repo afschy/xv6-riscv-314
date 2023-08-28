@@ -2,7 +2,6 @@
 #include "kernel/stat.h"
 #include "user/user.h"
 #include "user/cond.h"
-#include "user/thread_wrapper.h"
 int arrsize = 4 * 4096;
 
 struct cond con;
@@ -13,6 +12,7 @@ void
 temp(void* arg) {
     while(1)
     printf("in temp\n");
+    thread_exit();
 }
 
 void
@@ -29,7 +29,7 @@ sleeper(void* arg) {
     // int t2 = thread_create(sleeper, (void*)0, s2);
     // thread_create(sleeper, (void*)0, s3);
 
-    // thread_exit();
+    thread_exit();
 }
 
 void
@@ -37,6 +37,7 @@ waker(void* arg) {
     // sleep(5);
     while(1)
         printf("lol\n");
+    thread_exit();
 }
 
 int

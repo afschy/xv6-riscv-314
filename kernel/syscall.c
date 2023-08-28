@@ -101,7 +101,7 @@ extern uint64 sys_unlink(void);
 extern uint64 sys_link(void);
 extern uint64 sys_mkdir(void);
 extern uint64 sys_close(void);
-extern uint64 sys_thread_create_kernel(void);
+extern uint64 sys_thread_create(void);
 extern uint64 sys_thread_join(void);
 extern uint64 sys_thread_exit(void);
 extern uint64 sys_kernel_release(void);
@@ -133,7 +133,7 @@ static uint64 (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
-[SYS_thread_create_kernel] sys_thread_create_kernel,
+[SYS_thread_create] sys_thread_create,
 [SYS_thread_join]   sys_thread_join,
 [SYS_thread_exit]   sys_thread_exit,
 [SYS_kernel_release] sys_kernel_release,
